@@ -1,2 +1,5 @@
-# pygeko
-Fast Generalized Covariance Kriging for Python
+# pyGEKO: Fast Generalized Covariance Kriging for Python
+
+**pyGEKO** is a high-performance Python library designed for geostatistical interpolation and surface modeling. It is engineered for efficiency, making it ideal for both heavy-duty x86 workstations and low-power ARM devices like the **Raspberry Pi 5**...
+
+### First commit coming soon...
