@@ -1,0 +1,118 @@
+[project]
+name = "pyGEKO"
+description = "Fast Generalized Covariance Kriging for Python"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "Jesús Cabrera", email = "jccsvq@gmail.com" },
+]
+keywords = ["kriging", "geostatistics", "interpolation", "raspberry-pi", "spatial-analysis"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+  "Topic :: Scientific/Engineering :: GIS",
+  "Intended Audience :: Science/Research",
+]
+dependencies = [
+  "joblib",
+  "matplotlib",
+  "numpy",
+  "scipy",
+  "pandas",
+  "plotly",
+  "seaborn",
+]
+dynamic = ["version"]
+
+[project.urls]
+Documentation = "https://github.com/jccsvq/pygeko#readme"
+Issues = "https://github.com/jccsvq/pygeko/issues"
+Source = "https://github.com/jccsvq/pygeko"
+
+[project.scripts]
+pygeko = "pygeko.gck_kriger:main"
+lsgck = "pygeko.lsgck:main"
+png2csv = "pygeko.png_to_csv:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.coverage.run]
+source_pkgs = ["pygeko", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/pygeko/__about__.py",
+]
+
+[tool.coverage.paths]
+pygeko = ["src/pygeko", "*/pygeko/src/pygeko"]
+tests = ["tests", "*/pygeko/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[tool.hatch.version]
+path = "src/pygeko/__about__.py"
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/pygeko tests}"
+
+[tool.hatch.envs.pi]
+dependencies = [
+  "numpy",
+  "pandas",
+  "scipy",
+  "matplotlib",
+  "plotly",
+  "joblib",
+  "seaborn",
+  "PyQt6",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src/pygeko/testdata/*.csv",
+    "/examples/",
+]
+exclude = [
+  "trash/",
+  "*.grd",
+  "*.dat",
+  "*.gck",
+  "*.hdr",
+  "pruebas/",
+  "docs/build/",
+  ".fslckout",
+  "*.gitignore",
+  "*.png",
+  "*.html",
+]
+
+[tool.hatch.envs.docs]
+dependencies = [
+  "sphinx>=9.0.4",
+  "myst-parser",
+  "sphinx-book-theme",
+  "sphinx-autodoc-typehints",
+]
+
+[tool.hatch.envs.docs.scripts]
+build = "sphinx-build -M html docs docs/_build"

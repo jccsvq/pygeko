@@ -1,0 +1,574 @@
+"""
+Main data handling and Kriging estimation module.
+"""
+
+import os
+import tempfile
+from datetime import datetime
+
+import joblib
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from matplotlib import cm
+from scipy.spatial import KDTree
+
+# Import utility functions
+from pygeko.models import models_bool
+from pygeko.utils import (
+    cross_validation,
+    export_grid,
+    fast_preview,
+    get_octants,
+    report_models,
+    run_full_exploration,
+    run_gik,
+)
+
+plt.close("all")
+
+
+class Kdata:
+    """
+    Manages data input and validation of generalized covariance models
+
+    This class extends pandas dataframe with specific attributes for kriging.
+    It inherits all the attributes and methods of pandas dataframe.
+    """
+
+    def __init__(self, *arg, **karg):
+        """
+        Kdata object creation.
+
+        All arguments are passed to `pandas.read_csv` method, the first one
+        must be a `.csv` filename containing the columns that we will use
+        as X, Y, and Z values.
+        """
+        self.dframe = pd.read_csv(*arg, **karg)
+        self.title = arg[0]
+
+        # Default column mapping
+        self.x_col = "X"
+        self.y_col = "Y"
+        self.z_col = "Z"
+        print('Column names default to "X", "Y" and "Z"')
+        self._nork = 1
+        self._nvec = 12
+        print(f"nvec dafaults to: {self._nvec} and nork to: {self._nork}")
+        print("Please, adapt these parameter to your problem!\n")
+        self.kdtree = None
+        self._scale = None  # To be initialized by self.init_neig()
+        self.crossvaldata = None
+
+    @property
+    def nork(self):
+        """
+        Polynomial order `k` getter
+
+        :return: polynomial order `k`
+        :rtype: int
+        """
+        return self._nork
+
+    @nork.setter
+    def nork(self, value):
+        """
+        Polynomial order `k` setter
+
+        :param value: polynomial order `k`
+        :type value: int
+        """
+        try:
+            assert value in {0, 1, 2}
+        except AssertionError as e:
+            print(e)
+            print("Oops: nork must be 1, 2 or 3 !!")
+        else:
+            self._nork = int(value)
+
+    @property
+    def nvec(self):
+        """
+        Number of neighbors to use in the calculations getter
+
+        :return: number of neighbors
+        :rtype: int
+        """
+        return self._nvec
+
+    @nvec.setter
+    def nvec(self, value):
+        """
+        Number of neighbors to use in the calculations setter
+
+        :param value: number of neighbors
+        :type value: int
+        """
+        try:
+            assert value in range(5, 32)
+        except AssertionError as e:
+            print(e)
+            print("Oops: nvec must be between 5 and 32 !!")
+        else:
+            self._nvec = int(value)
+
+    @property
+    def scale(self):
+        """
+        Scale factor used to stabilize the covariance matrix getter
+
+        :return: scale factor
+        :rtype: float
+        """
+        return self._scale
+
+    def show(self):
+        """Print the pandas dataframe"""
+        print(self.dframe)
+
+    def __getattr__(self, nombre):
+        if nombre == "dframe":
+            raise AttributeError(f"'{type(self).__name__}' has no 'dframe' yet.")
+
+        try:
+            return getattr(self.dframe, nombre)
+        except (AttributeError, KeyError):
+            raise AttributeError(
+                f"'{type(self).__name__}' has no '{nombre} attribute yet.'"
+            )
+
+    @property
+    def x(self):
+        """
+        X values getter
+
+        :return: X values
+        :rtype: numpy array
+        """
+        return self.dframe[self.x_col].values
+
+    @property
+    def y(self):
+        """
+        Y values getter
+
+        :return: Y values
+        :rtype: numpy array
+        """
+        return self.dframe[self.y_col].values
+
+    @property
+    def z(self):
+        """
+        Z values getter
+
+        :return: Z values
+        :rtype: numpy array
+        """
+        return self.dframe[self.z_col].values
+
+    @property
+    def status(self):
+        """
+        Prints information about the object
+        """
+        print("\nData properties:")
+        print(self.dframe.describe())
+        print("\nSetting:")
+        print(f"x_col: {self.x_col}")
+        print(f"y_col: {self.y_col}")
+        print(f"z_col: {self.z_col}")
+        print(f" nork: {self.nork}")
+        print(f" nvec: {self.nvec}")
+        print(f"Scale: {self._scale}")
+        if self.crossvaldata is not None:
+            print("\nCross validation data follows:")
+            report_models(self)
+        print("\n")
+
+    def init_neig(self):
+        """
+        Initialize the KDTree for efficient spatial searching and calculate scaling factors.
+        """
+        self.coordinates = np.array([self.x, self.y]).T
+        self.kdtree = KDTree(self.coordinates)
+
+        # Automatic scale calculation to stabilize matrix inversion
+        self.x_range = self.x.max() - self.x.min()
+        self.y_range = self.y.max() - self.y.min()
+        self._scale = max(self.x_range, self.y_range) / 10.0
+
+    def findneig(self, ax, ay, n, trim=False):
+        """
+        Find 'n' nearest neighbors for point (ax, ay) and compute their octants.
+
+        :param trim: If True, excludes the first match (useful for cross-validation).
+        :return: Tuple (indices, distances, octants, octant_count).
+        """
+        if self.kdtree:
+            dis, neig = self.kdtree.query([ax, ay], n + 1)
+
+            dis = dis.flatten()
+            neig = neig.flatten()
+
+            # We calculate octants ONLY of those neighbors
+            neighbor_x = self.x[neig]
+            neighbor_y = self.y[neig]
+            octr = get_octants(neighbor_x - ax, neighbor_y - ay)
+
+            if trim:
+                dis = dis[1:]
+                neig = neig[1:]
+                octr = octr[1:]
+            else:
+                dis = dis[:-1]
+                neig = neig[:-1]
+                octr = octr[:-1]
+
+            # Number of populated octants is: len({_ for _ in octr})
+            return neig, dis, octr, len({_ for _ in octr})
+        else:
+            raise RuntimeError("KDTree not initialized!")
+
+    def plot(self):
+        """
+        2D plot of objet data
+        """
+        # Plot
+        fig, ax = plt.subplots()
+
+        ax.plot(self.x, self.y, "o", markersize=2, color="grey")
+        ax.set_aspect("equal", adjustable="box")
+        ax.set_xlabel("X", fontsize=10, color="darkgreen")
+        ax.set_ylabel("Y", fontsize=10, color="darkgreen")
+        ax.set_title(self.title, fontsize=12, fontweight="bold")
+        ax.tripcolor(self.x, self.y, self.z)
+
+        plt.show()
+
+    def trisurf(self, factor=1):
+        """
+        Plot objet data as 3D surface
+        """
+        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        ax.plot_trisurf(
+            self.x, self.y, self.z, vmin=self.z.min() * factor, cmap=cm.Blues
+        )
+        ax.set_aspect("equal", adjustable="box")
+        ax.set_xlabel("X", fontsize=9, color="darkgreen")
+        ax.set_ylabel("Y", fontsize=9, color="darkgreen")
+        ax.set_zlabel("Z", fontsize=9, color="darkgreen")
+        ax.set_title(self.title, fontsize=12, fontweight="bold")
+        ax.set(xticklabels=[], yticklabels=[], zticklabels=[])
+
+        plt.show()
+
+    def analyze(self, preview=False):
+        """
+        Fit 22 generalized covariance models using generalized 
+        increments of order `k` and evaluates them. The results are stored 
+        in the `crossvaldata` attribute of the object.
+
+        This method also initializes the object KDTree for spatial analysis.
+
+        :param preview: Draw a quick preview of the best result as a contour map if true; the default is False.
+        :type preview: bool, optional
+        """        
+        self.init_neig()
+
+        # 2. GIK Phase: Generate the increment database
+        X, Y = run_gik(self)
+
+        # 3. GEKO Phase: Finding the best model among the 22 candidates
+        self.zk_optimum, self.model_id, self.mae, self.rmse, self.corr = (
+            run_full_exploration(self, X, Y, models_bool)
+        )
+
+        # 4. CROSSVAL Phase: Validate the winning model
+        print("\nValidating best model...")
+        actual, pred, err = cross_validation(self, self.zk_optimum)
+
+        # 5. FAIK Phase: Visualization and Export
+        if preview:
+            fast_preview(self, self.zk_optimum)
+
+    def save(self):
+        """
+        Save the object as a `.gck` file with metadata and a summary of the configuration for quick identification.
+        """
+        filename = f"{(self.title).split('.')[0]}_{self._nork}_{self._nvec}.gck"
+
+        # 1. Extract metadata (experiment ID)
+        metadata = {
+            "fecha_creacion": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "n_puntos": len(self.dframe) if hasattr(self, "dframe") else 0,
+            "params": {
+                "nork": getattr(self, "nork", None),
+                "nvec": getattr(self, "nvec", None),
+                "model_id": getattr(self, "model_id", "Desconocido"),
+            },
+            "metricas": {
+                "MAE": getattr(self, "mae", "N/A"),
+                "RMSE": getattr(self, "rmse", "N/A"),
+                "Corr": getattr(self, "corr", "N/A"),
+            },
+        }
+
+        # 2. Filter the payload (heavy regenerable objects)
+        # We exclude kdtree and coordinates because init_neig() creates them in a second.
+        payload = {
+            k: v for k, v in self.__dict__.items() if k not in ["kdtree", "coordinates"]
+        }
+
+        # 3. Save the compressed package
+        joblib.dump({"metadata": metadata, "payload": payload}, filename, compress=3)
+        print(f"\n[OK] Guardado: {filename}")
+        print(
+            f"     MAE: {metadata['metricas']['MAE']} | nvec: {metadata['params']['nvec']}"
+        )
+
+    def restore(self, filename):
+        """
+        Load the state stored in a `.gck` fileand rebuild the spatial search engine.
+
+        :param filename: gck filename to load
+        :type filename: string
+        """
+        if not filename.endswith(".gck"):
+            filename += ".gck"
+
+        if not os.path.exists(filename):
+            print(f"[Error] No se encontró el archivo: {filename}")
+            return
+
+        # Load package
+        checkpoint = joblib.load(filename)
+        meta = checkpoint["metadata"]
+
+        # Restore variables to the current object
+        self.__dict__.update(checkpoint["payload"])
+
+        # CRITICAL RECONSTRUCTION
+        # Since we didn't save the tree, we're rebuilding it on the fly
+        self.init_neig()
+
+        print("\n[RESTORE] Configuración recuperada:")
+        print(
+            f"          Modelo: {meta['params']['model_id']} | nork: {meta['params']['nork']} | nvec: {meta['params']['nvec']}"
+        )
+        print(f"          Validación original: MAE={meta['metricas']['MAE']}")
+        print(f"          KDTree regenerado para {meta['n_puntos']} puntos.")
+
+    def tune(self, nvec_list, nork_list=[1, 2]):
+        """
+        Performs an automatic parameter scan and returns the best model.
+
+        :param nvec_list: list of integers, e.g., [8, 12, 16, 20]
+        :type nvec_list: list
+        :param nork_list: list of integers, defaults to [1, 2]
+        :type nork_list: list, optional
+        :return: list of dictionaries with tuning results
+        :rtype: list
+        """
+        results = []
+
+        total_it = len(nvec_list) * len(nork_list)
+        print(f"Starting scan of {total_it} combinations...")
+
+        for nork in nork_list:
+            for nvec in nvec_list:
+                print(f"Trying: nork={nork}, nvec={nvec}...", end="\r")
+
+                # We run the analysis with the current configuration
+                # I assume that `analyze()` updates `self.mae` and `self.model_id`
+                self._nork = nork
+                self._nvec = nvec
+                self.analyze()
+                self.save()
+
+                results.append(
+                    {
+                        "nork": nork,
+                        "nvec": nvec,
+                        "model_id": self.model_id,
+                        "mae": self.mae,
+                        "rmse": self.rmse,
+                        "corr": self.corr,
+                    }
+                )
+
+        # Convert to DataFrame for easier visualization
+        df_tuning = pd.DataFrame(results)
+
+        # Find the best (lowest MAE)
+        best = df_tuning.loc[df_tuning["mae"].idxmin()]
+
+        print(f"\n\n{'=' * 40}")
+        print(" TUNING RESULT")
+        print(f"{'=' * 40}")
+        print(df_tuning.to_string(index=False))
+        print(f"{'=' * 40}")
+        print(f"Best setting: nork={best.nork}, nvec={best.nvec}")
+        print(f"Minimum MAE: {best.mae:.4f} (Model #{int(best.model_id)})")
+
+        # We leave the object configured with the best parameters
+        # self.analyze(nork=int(best.nork), nvec=int(best.nvec))
+
+        self._nork = int(best.nork)
+        self._nvec = int(best.nvec)
+        filename = f"{(self.title).split('.')[0]}_{self._nork}_{self._nvec}.gck"
+        self.restore(filename)
+        return df_tuning
+
+    def plot_tuning_results(self, df_tuning):
+        """Generate a static heatmap of the tuning results.
+
+        :param df_tuning: list of dictionaries with tuning results
+        :type df_tuning: list of dictionaries
+        """
+        pivot_table = df_tuning.pivot(index="nork", columns="nvec", values="mae")
+
+        plt.figure(figsize=(10, 6))
+        ax = sns.heatmap(
+            pivot_table,
+            annot=True,
+            fmt=".4f",
+            cmap="YlGnBu_r",
+            cbar_kws={"label": "Mean Absolute Error (MAE)"},
+        )
+
+        plt.title(f"GCK Parameter Optimization: {self.title}")
+        plt.xlabel("Number of Neighbors (nvec)")
+        plt.ylabel("Polynomial Order (nork)")
+
+        temp_img = os.path.join(tempfile.gettempdir(), "gck_tuning_plot.png")
+        plt.savefig(temp_img, dpi=150, bbox_inches="tight")
+        print(f"[PLOT] Heatmap saved to: {temp_img}")
+
+        if os.name == "posix":
+            os.system(f"xdg-open {temp_img} > /dev/null 2>&1 &")
+        else:
+            plt.show()
+        plt.close()
+
+
+class Kgrid:
+    """Manages grid definitions and interpolation workflow."""
+
+    def __init__(self, kdata, xmin, xmax, ymin, ymax, bins, hist):
+        """Class constructor
+
+        :param kdata: _description_
+        :type kdata: _type_
+        :param xmin: _description_
+        :type xmin: _type_
+        :param xmax: _description_
+        :type xmax: _type_
+        :param ymin: _description_
+        :type ymin: _type_
+        :param ymax: _description_
+        :type ymax: _type_
+        :param bins: _description_
+        :type bins: _type_
+        :param hist: _description_
+        :type hist: _type_
+        """        
+        assert isinstance(kdata, Kdata)
+        self.kdata = kdata
+        # Estimation window parameters
+        self.xmin = xmin
+        self.xmax = xmax
+        self.ymin = ymin
+        self.ymax = ymax
+        # Grid resolution
+        self.bins = bins  # X axis
+        self.hist = hist  # Y axis
+        # Model
+        self._model = None
+        self.zk_final = None
+
+    @property
+    def status(self):
+        """
+        Print the status of the object
+        """
+        print(f"Data from: {self.kdata.title}")
+        print("Columns")
+        print(f"x_col = {self.kdata.x_col}")
+        print(f"y_col = {self.kdata.y_col}")
+        print(f"z_col = {self.kdata.z_col}")
+        print("Window:")
+        print(f"xmin = {self.xmin}")
+        print(f"xmax = {self.xmax}")
+        print(f"ymin = {self.ymin}")
+        print(f"ymax = {self.ymax}")
+        print("Grid:")
+        print(f"bins = {self.bins}")
+        print(f"hist = {self.hist}")
+        if self.model:
+            print(f"Model = {self.model}")
+            print(f"   zk = {self.zk_final} ")
+
+    @property
+    def models(self):
+        """
+        Print a detailed report of all tested models.
+        """
+        report_models(self.kdata)
+
+    @property
+    def model(self):
+        """
+        Selected model getter
+        """
+        return self._model
+
+    @model.setter
+    def model(self, value):
+        """
+        Selected model setter
+
+        :param value: model to set
+        :type value: int
+        """
+        self._model = value
+        final_model = next(
+            m for m in self.kdata.crossvaldata if m["model_idx"] == value
+        )
+        self.zk_final = final_model["zk"]
+
+    def ask_model(self):
+        """
+        Method to ask interactivel for the model to use for the final map.
+        """
+        self._model = int(
+            input("\nEnter the model number (MOD) you want to use for the final map: ")
+        )
+
+        final_model = next(
+            m for m in self.kdata.crossvaldata if m["model_idx"] == self._model
+        )
+        self.zk_final = final_model["zk"]
+
+    def estimate_grid(self, preview=False, filename="result"):
+        """
+        Run the grid estimation using the parent Kdata model.
+
+        :param preview: plot a contour map preview if True, defaults to False
+        :type preview: bool, optional
+        :param filename: grid result filename base, defaults to "result"
+        :type filename: str, optional
+        """  
+        print(f"\n[GRID] Generating map with Model #{self.model}...")
+        if preview:
+            fast_preview(self.kdata, self.zk_final)
+        export_grid(
+            self,
+            self.zk_final,
+            filename=f"{filename}_{self.kdata.nork}_{self.kdata.nvec}_mod_{self.model}",
+            res_x=self.bins,
+            res_y=self.hist,
+        )
+
+

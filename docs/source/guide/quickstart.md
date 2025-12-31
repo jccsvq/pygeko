@@ -1,66 +1,10 @@
-# pyGEKO: Fast Generalized Covariance Kriging for Python
+# 💻 Quick Start
 
+## 💻 Basic Workflow
 
-![Status](https://img.shields.io/badge/status-work--in--progress-orange)
-[![Documentation Status](https://readthedocs.org/projects/pygeko/badge/?version=latest)](https://pygeko.readthedocs.io/en/latest/?badge=latest)
-[![PyPI - Version](https://img.shields.io/pypi/v/pygeko.svg)](https://pypi.org/project/pygeko)
-![Python](https://img.shields.io/badge/python-3.11+-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-
-
-> [!IMPORTANT]
-> **Project Status:** pyGEKO is currently in active development (Beta). 
-> - 🛠️ **Installation:** The package is not yet available on PyPI. For now, please install from source using Hatch.
-> - 📖 **Documentation:** Manuals are being compiled. The full documentation site will be live soon.
-> - 🚀 **First Release:** Expected late January 2026.
-
-> **Full Documentation:** [pygeko.readthedocs.io](https://pygeko.readthedocs.io)
-
-<img src="assets/pyGEKO_logo.png" alt="pyGEKO Logo" width="100" height="100"></img>
-
-**pyGEKO** is a high-performance Python library designed for geostatistical interpolation and surface modeling. It is engineered for efficiency, making it ideal for both heavy-duty x86 workstations and low-power ARM devices like the **Raspberry Pi 5**. It honors the mining heritage of Kriging by treating sparse data points as valuable gems 💎 to be accurately modeled into continuous surfaces.
-
-## 🚀 Key Features
-
-* **High-Performance Engine:** Kriging implementation is fully vectorized (numpy) and optimized with KD-Tree spatial indexing.
-* **True Parallelism:** Seamlessly scales across all CPU cores for grid estimation.
-* **Advanced Visualization:** 3D interactive surfaces (Plotly) and static scientific error analysis (Matplotlib/Seaborn).
-* **Geoscience Standards:** Built-in support for industry-standard `.grd` and `.hdr` (Sidecar) file formats.
-* **Smart Metadata:** Saves model parameters (, , ) directly within the project files.
-* **CLI Utilities:** Include `pygeko`, a python REPL with pre-imported modules for interactive analysis. Also include `lsgck`, a command-line tool to inspect your experiment results instantly.
-
-<a href=assets/msh-rpi.jpg target="_blank">
-<figure>
-  <img src=assets/msh-rpi-small.jpg alt="">
-  <figcaption>Mount St. Helens 1000x1000 grid (from 5000 points) as viewed in a Raspberry PI 5 acceded vis VNC</figcaption>
-</figure></a>
-
-## 📊 Performance Benchmark
-
-PyGEKO was benchmarked processing a **1,000,000 point grid** (1000x1000) on Debian 12:
-
-| Platform | CPU | Cores | Time (1M points) |
-| --- | --- | --- | --- |
-| **Desktop PC** | Intel i7-9700K | 8 | **36.3 s** |
-| **Raspberry Pi 5** | Cortex-A76 | 3* | **~110 s** |
-| **Recommended 3-core config for thermal stability on ARM.* |  |  |  |
-
-
-## 🛠 Installation (Development Mode)
-
-Since pyGEKO is not yet on PyPI, you can test it by cloning the repository:
 
 ```bash
-git clone [https://github.com/tu_usuario/pygeko.git](https://github.com/tu_usuario/pygeko.git)
-cd pygeko
-pip install -e .
-```
-Note: We recommend using Hatch for a seamless development experience.
-
-## 💻 Quick Start
-
-```python
-$ pygeko 
+$ pygeko    # Invoque pygeko REPL
 
 Welcome to pyGEKO-Kriger 0.9.0
     
@@ -142,9 +86,9 @@ montebea_1_12_mod_21 (1000x1000) grid successfully read
 --> gp.contourd()
 
 ```
-![montebea_1_12_mod_21](assets/montebea_1_12_mod_21_contourc.png)
+![montebea_1_12_mod_21](../_static/montebea_1_12_mod_21_contourc.png)
 
-## 💻 Heatmap
+## 💻 Heatmap, Automation
 Instead of using `kd.analyze()` above, you can start an automatic model analysis
 
 ```python
@@ -157,19 +101,16 @@ And after a long and boring list of results, it obtains a series of `.gck` files
 
 kd.plot_tuning_results(config_report)
 ```
-![gck_heatmap](assets/gck_tuning_plot.png)
+![gck_heatmap](../_static/gck_tuning_plot.png)
 
 Which will quickly guide you to the best parameters to use for your interpolation (nork = 1, nvec = 14)
 
-## 🔍 Command Line Interface (CLI)
+## 🔍 Command Line Utility `lsgck` (CLI)
 
 pyGEKO provides the `lsgck` command to keep your workspace organized. No need to open Python to check your results:
 
 ```bash
 $ lsgck
-```
-
-```ansi
 
 =====================================================================================================
 File                           | Date   | nork  | nvec  | MAE      | RMSE     | CORR     | Model     
@@ -193,29 +134,4 @@ montebea_2_8.gck               | 12-27  | 2     | 8     |  129.871 |  171.107 | 
     
 
 ```
-
-The `pygeko` command will launch a Python REPL with the `Kdata`, `Kgrid`, and `Gplot` classes imported, allowing you to start working interactively in any directory.
-
-```bash
-$ pygeko
-
-Welcome to pyGEKO-Kriger 0.9.0
-    
-Classes Kdata, Kgrid and Gplot imported.
-
-Use exit() or Ctrl-D (i.e. EOF) to exit.
-
---> 
-```
-
-
-## 📂 Output Formats
-
-* `.gck`: Binary object containing the full Python state and metadata.
-* `.grd`: Standard grid file (CSV format) for GIS software.
-* `.hdr`: Human-readable header file with model performance metrics.
-
-## 📄 License
-
-`pyGEKO` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
 

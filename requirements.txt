@@ -1,0 +1,7 @@
+# These requirements are only for project documentation with Sphinx.
+
+sphinx
+myst_parser
+sphinx_book_theme
+sphinx-autodoc-typehints
+
