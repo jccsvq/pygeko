@@ -2,8 +2,9 @@
 Main data handling and Kriging estimation module.
 """
 
+import gc
+import multiprocessing as mp
 import os
-import tempfile
 from datetime import datetime
 
 import joblib
@@ -13,20 +14,21 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import cm
 from scipy.spatial import KDTree
+from tqdm import tqdm
 
-# Import utility functions
+from pygeko.gplot import set_xy_axes_equal_3d
 from pygeko.models import models_bool
 from pygeko.utils import (
+    _worker_tune,
     cross_validation,
-    export_grid,
+    cross_validation_silent,
     fast_preview,
     get_octants,
+    get_optimal_workers,
     report_models,
     run_full_exploration,
     run_gik,
 )
-
-plt.close("all")
 
 
 class Kdata:
@@ -46,7 +48,7 @@ class Kdata:
         as X, Y, and Z values.
         """
         self.dframe = pd.read_csv(*arg, **karg)
-        self.title = arg[0]
+        self.title = os.path.basename(arg[0])
 
         # Default column mapping
         self.x_col = "X"
@@ -246,6 +248,8 @@ class Kdata:
         ax.tripcolor(self.x, self.y, self.z)
 
         plt.show()
+        plt.close("all")
+        gc.collect()
 
     def trisurf(self, factor=1):
         """
@@ -255,7 +259,8 @@ class Kdata:
         ax.plot_trisurf(
             self.x, self.y, self.z, vmin=self.z.min() * factor, cmap=cm.Blues
         )
-        ax.set_aspect("equal", adjustable="box")
+        # ax.set_aspect("equal", adjustable="box")
+        set_xy_axes_equal_3d(ax)  # X-Y axes equal scale !
         ax.set_xlabel("X", fontsize=9, color="darkgreen")
         ax.set_ylabel("Y", fontsize=9, color="darkgreen")
         ax.set_zlabel("Z", fontsize=9, color="darkgreen")
@@ -263,37 +268,99 @@ class Kdata:
         ax.set(xticklabels=[], yticklabels=[], zticklabels=[])
 
         plt.show()
+        plt.close("all")
+        gc.collect()
 
-    def analyze(self, preview=False):
+    def _execute_analysis(self, preview: bool = False, verbose: bool = True):
         """
-        Fit 22 generalized covariance models using generalized 
-        increments of order `k` and evaluates them. The results are stored 
+        Fit 21 generalized covariance models using generalized
+        increments of order `k` and evaluates them. The results are stored
         in the `crossvaldata` attribute of the object.
 
         This method also initializes the object KDTree for spatial analysis.
 
-        :param preview: Draw a quick preview of the best result as a contour map if true; the default is False.
+        :param preview: Draw a quick preview of the best result as a contour map if true, defaults to False
         :type preview: bool, optional
-        """        
-        self.init_neig()
+        :param verbose: to be transmited to run_full_exploration, defaults to True
+        :type verbose: bool, optional
+        """
+        # process = psutil.Process(os.getpid())
+
+        if self.kdtree is None:
+            self.init_neig()
 
         # 2. GIK Phase: Generate the increment database
-        X, Y = run_gik(self)
+        X, Y = run_gik(self, verbose=False)
+        # tqdm.write(f"RAM after GIK: {process.memory_info().rss / 1024 / 1024:.2f} MB")
 
-        # 3. GEKO Phase: Finding the best model among the 22 candidates
-        self.zk_optimum, self.model_id, self.mae, self.rmse, self.corr = (
-            run_full_exploration(self, X, Y, models_bool)
+        # 3. GEKO Phase: Finding the best model among the 21 candidates
+        res_opt, res_id, res_mae, res_rmse, res_corr = run_full_exploration(
+            self, X, Y, models_bool, verbose
         )
 
+        # We forced a physical copy of the data to break the link with the 300MB arrays
+        self.zk_optimum = res_opt.copy() if hasattr(res_opt, "copy") else res_opt
+        self.model_id = res_id
+        self.mae = float(res_mae)
+        self.rmse = float(res_rmse)
+        self.corr = float(res_corr)
+
+        # We free the local variables of the function
+        del X, Y, res_opt
+
+        # tqdm.write(f"RAM after EXPLORATION: {process.memory_info().rss / 1024 / 1024:.2f} MB")
+
         # 4. CROSSVAL Phase: Validate the winning model
-        print("\nValidating best model...")
-        actual, pred, err = cross_validation(self, self.zk_optimum)
+        if verbose:
+            tqdm.write("\nValidating best model...")
+            actual, pred, err = cross_validation(self, self.zk_optimum)
+        else:
+            actual, pred, err = cross_validation_silent(self, self.zk_optimum)
+
+        # tqdm.write(f"RAM after CROSSVAL: {process.memory_info().rss / 1024 / 1024:.2f} MB")
 
         # 5. FAIK Phase: Visualization and Export
         if preview:
             fast_preview(self, self.zk_optimum)
 
-    def save(self):
+    def analyze(self, preview=False, verbose=True):
+        """
+        Fit 21 generalized covariance models using generalized
+        increments of order `k` and evaluates them. The results are stored
+        in the `crossvaldata` attribute of the object.
+
+        This method also initializes the object KDTree for spatial analysis.
+
+        :param preview: Draw a quick preview of the best result as a contour map if true, defaults to False
+        :type preview: bool, optional
+        :param verbose: to be transmited to run_full_exploration, defaults to True
+        :type verbose: bool, optional
+        """
+        if self.kdtree is None:
+            self.init_neig()
+        if verbose:
+            print(
+                f"Executing isolated analysis (NORK={self._nork}, NVEC={self._nvec})..."
+            )
+
+        # Launch a one-time use pool
+        with mp.Pool(processes=1, maxtasksperchild=1) as pool:
+            res = pool.apply(_worker_tune, (self._nork, self._nvec, self, True))
+
+        # SYNCHRONIZATION: We bring the results from the child object to the current object
+        self.mae = res["mae"]
+        self.rmse = res["rmse"]
+        self.corr = res["corr"]
+        self.model_id = res["model_id"]
+        self.zk_optimum = (res["zk_optimum"],)
+        self.crossvaldata = res["crossvaldata"]
+
+        # Garbage collection
+        gc.collect()
+        if preview:
+            self.preview()
+
+    def save(self, verbose=True):
         """
         Save the object as a `.gck` file with metadata and a summary of the configuration for quick identification.
         """
@@ -306,7 +373,7 @@ class Kdata:
             "params": {
                 "nork": getattr(self, "nork", None),
                 "nvec": getattr(self, "nvec", None),
-                "model_id": getattr(self, "model_id", "Desconocido"),
+                "model_id": getattr(self, "model_id", "Unknown"),
             },
             "metricas": {
                 "MAE": getattr(self, "mae", "N/A"),
@@ -323,10 +390,11 @@ class Kdata:
 
         # 3. Save the compressed package
         joblib.dump({"metadata": metadata, "payload": payload}, filename, compress=3)
-        print(f"\n[OK] Guardado: {filename}")
-        print(
-            f"     MAE: {metadata['metricas']['MAE']} | nvec: {metadata['params']['nvec']}"
-        )
+        if verbose:
+            tqdm.write(f"\n[OK] Saved: {filename}")
+            tqdm.write(
+                f"     MAE: {metadata['metricas']['MAE']} | nork: {metadata['params']['nork']} | nvec: {metadata['params']['nvec']}"
+            )
 
     def restore(self, filename):
         """
@@ -339,7 +407,7 @@ class Kdata:
             filename += ".gck"
 
         if not os.path.exists(filename):
-            print(f"[Error] No se encontró el archivo: {filename}")
+            print(f"[Error] File not found: {filename}")
             return
 
         # Load package
@@ -353,14 +421,14 @@ class Kdata:
         # Since we didn't save the tree, we're rebuilding it on the fly
         self.init_neig()
 
-        print("\n[RESTORE] Configuración recuperada:")
+        print("\n[RESTORE] Configuration recovered:")
         print(
-            f"          Modelo: {meta['params']['model_id']} | nork: {meta['params']['nork']} | nvec: {meta['params']['nvec']}"
+            f"          Model: {meta['params']['model_id']} | nork: {meta['params']['nork']} | nvec: {meta['params']['nvec']}"
         )
-        print(f"          Validación original: MAE={meta['metricas']['MAE']}")
-        print(f"          KDTree regenerado para {meta['n_puntos']} puntos.")
+        print(f"          Original validation: MAE={meta['metricas']['MAE']}")
+        print(f"          KDTree regenerated for {meta['n_puntos']} points.")
 
-    def tune(self, nvec_list, nork_list=[1, 2]):
+    def tune(self, nvec_list, nork_list):
         """
         Performs an automatic parameter scan and returns the best model.
 
@@ -372,31 +440,24 @@ class Kdata:
         :rtype: list
         """
         results = []
+        configs = [(nork, nvec) for nork in nork_list for nvec in nvec_list]
+        print(f"Starting isolated scan of {len(configs)} combinations...")
 
-        total_it = len(nvec_list) * len(nork_list)
-        print(f"Starting scan of {total_it} combinations...")
+        # Configure the pool
+        # maxtasksperchild=1 is the secret to total cleanup
+        # processes=3 to take advantage of the RPi 5, or 1 if you want to be on the safe side
+        with mp.Pool(processes=get_optimal_workers(), maxtasksperchild=1) as pool:
+            # Prepare the calls
+            multiple_results = [
+                pool.apply_async(_worker_tune, (nk, nv, self)) for nk, nv in configs
+            ]
 
-        for nork in nork_list:
-            for nvec in nvec_list:
-                print(f"Trying: nork={nork}, nvec={nvec}...", end="\r")
+            # Collect results with a progress bar
+            for res in tqdm(multiple_results, desc="[TUNING SCAN]"):
+                results.append(res.get())
 
-                # We run the analysis with the current configuration
-                # I assume that `analyze()` updates `self.mae` and `self.model_id`
-                self._nork = nork
-                self._nvec = nvec
-                self.analyze()
-                self.save()
-
-                results.append(
-                    {
-                        "nork": nork,
-                        "nvec": nvec,
-                        "model_id": self.model_id,
-                        "mae": self.mae,
-                        "rmse": self.rmse,
-                        "corr": self.corr,
-                    }
-                )
+        # Garbage collection
+        gc.collect()
 
         # Convert to DataFrame for easier visualization
         df_tuning = pd.DataFrame(results)
@@ -413,7 +474,7 @@ class Kdata:
         print(f"Minimum MAE: {best.mae:.4f} (Model #{int(best.model_id)})")
 
         # We leave the object configured with the best parameters
-        # self.analyze(nork=int(best.nork), nvec=int(best.nvec))
+        # self._execute_analysis(nork=int(best.nork), nvec=int(best.nvec))
 
         self._nork = int(best.nork)
         self._nvec = int(best.nvec)
@@ -442,7 +503,8 @@ class Kdata:
         plt.xlabel("Number of Neighbors (nvec)")
         plt.ylabel("Polynomial Order (nork)")
 
-        temp_img = os.path.join(tempfile.gettempdir(), "gck_tuning_plot.png")
+        # temp_img = os.path.join(tempfile.gettempdir(), "gck_tuning_plot.png")
+        temp_img = self.title.split(".")[0] + "_tuning.png"
         plt.savefig(temp_img, dpi=150, bbox_inches="tight")
         print(f"[PLOT] Heatmap saved to: {temp_img}")
 
@@ -450,125 +512,5 @@ class Kdata:
             os.system(f"xdg-open {temp_img} > /dev/null 2>&1 &")
         else:
             plt.show()
-        plt.close()
-
-
-class Kgrid:
-    """Manages grid definitions and interpolation workflow."""
-
-    def __init__(self, kdata, xmin, xmax, ymin, ymax, bins, hist):
-        """Class constructor
-
-        :param kdata: _description_
-        :type kdata: _type_
-        :param xmin: _description_
-        :type xmin: _type_
-        :param xmax: _description_
-        :type xmax: _type_
-        :param ymin: _description_
-        :type ymin: _type_
-        :param ymax: _description_
-        :type ymax: _type_
-        :param bins: _description_
-        :type bins: _type_
-        :param hist: _description_
-        :type hist: _type_
-        """        
-        assert isinstance(kdata, Kdata)
-        self.kdata = kdata
-        # Estimation window parameters
-        self.xmin = xmin
-        self.xmax = xmax
-        self.ymin = ymin
-        self.ymax = ymax
-        # Grid resolution
-        self.bins = bins  # X axis
-        self.hist = hist  # Y axis
-        # Model
-        self._model = None
-        self.zk_final = None
-
-    @property
-    def status(self):
-        """
-        Print the status of the object
-        """
-        print(f"Data from: {self.kdata.title}")
-        print("Columns")
-        print(f"x_col = {self.kdata.x_col}")
-        print(f"y_col = {self.kdata.y_col}")
-        print(f"z_col = {self.kdata.z_col}")
-        print("Window:")
-        print(f"xmin = {self.xmin}")
-        print(f"xmax = {self.xmax}")
-        print(f"ymin = {self.ymin}")
-        print(f"ymax = {self.ymax}")
-        print("Grid:")
-        print(f"bins = {self.bins}")
-        print(f"hist = {self.hist}")
-        if self.model:
-            print(f"Model = {self.model}")
-            print(f"   zk = {self.zk_final} ")
-
-    @property
-    def models(self):
-        """
-        Print a detailed report of all tested models.
-        """
-        report_models(self.kdata)
-
-    @property
-    def model(self):
-        """
-        Selected model getter
-        """
-        return self._model
-
-    @model.setter
-    def model(self, value):
-        """
-        Selected model setter
-
-        :param value: model to set
-        :type value: int
-        """
-        self._model = value
-        final_model = next(
-            m for m in self.kdata.crossvaldata if m["model_idx"] == value
-        )
-        self.zk_final = final_model["zk"]
-
-    def ask_model(self):
-        """
-        Method to ask interactivel for the model to use for the final map.
-        """
-        self._model = int(
-            input("\nEnter the model number (MOD) you want to use for the final map: ")
-        )
-
-        final_model = next(
-            m for m in self.kdata.crossvaldata if m["model_idx"] == self._model
-        )
-        self.zk_final = final_model["zk"]
-
-    def estimate_grid(self, preview=False, filename="result"):
-        """
-        Run the grid estimation using the parent Kdata model.
-
-        :param preview: plot a contour map preview if True, defaults to False
-        :type preview: bool, optional
-        :param filename: grid result filename base, defaults to "result"
-        :type filename: str, optional
-        """  
-        print(f"\n[GRID] Generating map with Model #{self.model}...")
-        if preview:
-            fast_preview(self.kdata, self.zk_final)
-        export_grid(
-            self,
-            self.zk_final,
-            filename=f"{filename}_{self.kdata.nork}_{self.kdata.nvec}_mod_{self.model}",
-            res_x=self.bins,
-            res_y=self.hist,
-        )
-
-
+        plt.close("all")
+        gc.collect()

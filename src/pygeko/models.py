@@ -3,7 +3,6 @@ import numpy as np
 models=(np.array([1,0,0,0,0,
 0,1,0,0,0,
 0,0,1,0,0,
-0,0,1,0,0,
 0,0,0,1,0,
 0,0,0,0,1,
 1,1,0,0,0,
@@ -21,11 +20,10 @@ models=(np.array([1,0,0,0,0,
 0,1,1,1,0,
 0,1,1,0,1,
 1,1,1,1,0,
-1,1,1,0,1],dtype=int)).reshape(22,5)
+1,1,1,0,1],dtype=int)).reshape(21,5)
 
 models_bool=(np.array([True,False,False,False,False,
 False,True,False,False,False,
-False,False,True,False,False,
 False,False,True,False,False,
 False,False,False,True,False,
 False,False,False,False,True,
@@ -44,7 +42,7 @@ True,True,False,False,True,
 False,True,True,True,False,
 False,True,True,False,True,
 True,True,True,True,False,
-True,True,True,False,True],dtype=bool)).reshape(22,5)
+True,True,True,False,True],dtype=bool)).reshape(21,5)
 
 
 

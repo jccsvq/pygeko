@@ -28,11 +28,15 @@ dependencies = [
   "pandas",
   "plotly",
   "seaborn",
+  "tqdm",
+  "psutil"
 ]
+
+
 dynamic = ["version"]
 
 [project.urls]
-Documentation = "https://github.com/jccsvq/pygeko#readme"
+Documentation = "https://pygeko.readthedocs.io/"
 Issues = "https://github.com/jccsvq/pygeko/issues"
 Source = "https://github.com/jccsvq/pygeko"
 
@@ -84,6 +88,8 @@ dependencies = [
   "plotly",
   "joblib",
   "seaborn",
+  "psutil",
+  "tqdm",
   "PyQt6",
 ]
 

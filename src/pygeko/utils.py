@@ -1,5 +1,9 @@
+import ctypes
+import gc
 import os
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
+from tqdm import tqdm
 
 # Force NumPy to a single thread per process (must be done BEFORE importing NumPy))
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -16,7 +20,43 @@ from scipy.spatial.distance import pdist, squareform
 IS_PI = platform.machine().startswith("aarch64")
 
 if TYPE_CHECKING:
-    from pygeko.kdata import Kdata, Kgrid
+    from pygeko.kdata import Kdata
+    from pygeko.kgrid import Kgrid
+
+
+def _worker_tune(nork, nvec, kd_instance, verbose=True):
+    """
+    This function runs in a separate child process.
+    Upon completion, all of its memory (the 300MB leak) is lost.
+    """
+    kd_instance._nork = nork
+    kd_instance._nvec = nvec
+    kd_instance._execute_analysis(verbose=verbose)
+    kd_instance.save(verbose=verbose)
+
+    return {
+        "nork": nork,
+        "nvec": nvec,
+        "mae": kd_instance.mae,
+        "rmse": kd_instance.rmse,
+        "corr": kd_instance.corr,
+        "model_id": kd_instance.model_id,
+        "zk_optimum": kd_instance.zk_optimum,
+        "crossvaldata": getattr(kd_instance, "crossvaldata", None),
+    }
+
+
+def trim_memory():
+    """
+    On Linux systems (Raspberry Pi/Debian), this forces glibc to
+    return all freed memory to the operating system.
+    """
+    #
+    try:
+        libc = ctypes.CDLL("libc.so.6")
+        libc.malloc_trim(0)
+    except Exception:
+        pass
 
 
 def get_optimal_workers() -> int:
@@ -168,12 +208,12 @@ def get_generalized_covariance_1(
 
 def get_drift_monomial(ax: np.ndarray, ay: np.ndarray, i: int) -> np.ndarray:
     """
-    Calcula monomios polinomiales 2D vectorizados.
+    Calculate vectorized 2D polynomial monomials.
 
     Args:
-        ax: Coordenadas X
-        ay: Coordenadas Y
-        i: Índice del monomio (0-5)
+        ax: X coordinates
+        ay: Y coordinates
+        i: Index of the monomial (0-5)
 
     Returns:
         Array de valores del monomio
@@ -445,7 +485,7 @@ def fast_preview(
         "equal", adjustable="box"
     )  # We use 'equal' to maintain geographical proportions
 
-    # --- Panel 2: Error (Incertidumbre) ---
+    # --- Panel 2: Error (Uncertainty) ---
     im2 = ax2.contourf(X, Y, S_grid, levels=30, cmap="magma")
     fig.colorbar(im2, ax=ax2, label="Sigma (Error)")
     ax1.scatter(kd_obj.x, kd_obj.y, c="white", s=2, alpha=0.2)
@@ -457,6 +497,7 @@ def fast_preview(
 
     plt.tight_layout()
     plt.show()
+    plt.close("all")
 
 
 def cross_validation(
@@ -480,7 +521,7 @@ def cross_validation(
     errors = []
     sigmas = []
 
-    print(f"Starting Cross-Validation in {n_points} points...")
+    tqdm.write(f"Starting Cross-Validation in {n_points} points...")
 
     for i in range(n_points):
         tx, ty, tz = kd_obj.x[i], kd_obj.y[i], kd_obj.z[i]
@@ -509,11 +550,11 @@ def cross_validation(
     rmse = np.sqrt(np.mean(np.array(errors) ** 2))
     correlation = np.corrcoef(actual, predicted)[0, 1]
 
-    print("\n--- CROSS-VALIDATION SUMMARY ---")
-    print(f"Validated points: {len(actual)} / {n_points}")
-    print(f"Mean Absolute Error (MAE): {mae:.4f}")
-    print(f"Root Mean Square Error (RMSE): {rmse:.4f}")
-    print(f"Correlation Coefficient: {correlation:.4f}")
+    tqdm.write("\n--- CROSS-VALIDATION SUMMARY ---")
+    tqdm.write(f"Validated points: {len(actual)} / {n_points}")
+    tqdm.write(f"Mean Absolute Error (MAE): {mae:.4f}")
+    tqdm.write(f"Root Mean Square Error (RMSE): {rmse:.4f}")
+    tqdm.write(f"Correlation Coefficient: {correlation:.4f}")
 
     return actual, predicted, errors
 
@@ -534,10 +575,11 @@ def cross_validation_silent(
     nvec = kd_obj.nvec
     nork = kd_obj.nork
     n_points = len(kd_obj.x)
-    actual = []
-    predicted = []
-    errors = []
-    sigmas = []
+    actual = np.zeros(n_points)
+    predicted = np.zeros(n_points)
+    errors = np.zeros(n_points)
+    # sigmas = []
+    valid_idx = 0
 
     for i in range(n_points):
         tx, ty, tz = kd_obj.x[i], kd_obj.y[i], kd_obj.z[i]
@@ -554,14 +596,15 @@ def cross_validation_silent(
             if success:
                 lambdas = weights[: len(neig)]
                 z_est = np.sum(lambdas * kd_obj.z[neig])
-                s2 = np.dot(weights, b)
+                # s2 = np.dot(weights, b)
 
-                actual.append(tz)
-                predicted.append(z_est)
-                errors.append(tz - z_est)
-                sigmas.append(np.sqrt(max(0, s2)))
+                actual[valid_idx] = tz
+                predicted[valid_idx] = z_est
+                errors[valid_idx] = tz - z_est
+                valid_idx += 1
+                # sigmas.append(np.sqrt(max(0, s2)))
 
-    return actual, predicted, errors
+    return actual[:valid_idx], predicted[:valid_idx], errors[:valid_idx]
 
 
 def export_grid(
@@ -598,16 +641,19 @@ def export_grid(
     # We use ProcessPoolExecutor to distribute the rows among the cores
     all_results = []
     # with ProcessPoolExecutor(max_workers=4) as executor:
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor(max_workers=get_optimal_workers()) as executor:
         # We map the function to each value of y (row)
-        futures = [
-            executor.submit(_process_row, y, xi, kg_obj.kdata, zk_vec) for y in yi
-        ]
-
-        for i, future in enumerate(futures):
-            all_results.extend(future.result())
-            if i % (res_y // 10 or 1) == 0:
-                print(f"Progress: {100 * (i + 1) / res_y:.0f}%")
+        futures = {
+            executor.submit(_process_row, y, xi, kg_obj.kdata, zk_vec): y for y in yi
+        }
+        # 2. Usamos as_completed para capturar resultados según terminen
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Kriging"):
+            row_index = futures[future]
+            try:
+                all_results.extend(future.result())
+                # Guardar el resultado en tu matriz...
+            except Exception as e:
+                print(f"Error en fila {row_index}: {e}")
 
     # Save results
     with open(filename1, "w") as f:
@@ -640,71 +686,12 @@ def export_grid(
     print(f"Completed. Data saved to {filename1}")
 
 
-def export_grid_old(kg_obj, zk_vec, filename="RESULTADO", res_x=100, res_y=100):
-    """Generate a grid and export it to a CSV file (X, Y, Z, Sigma) single threaded.
-
-    :param kg_obj: _description_
-    :type kg_obj: _type_
-    :param zk_vec: _description_
-    :type zk_vec: _type_
-    :param filename: _description_, defaults to "RESULTADO"
-    :type filename: str, optional
-    :param res_x: _description_, defaults to 100
-    :type res_x: int, optional
-    :param res_y: _description_, defaults to 100
-    :type res_y: int, optional
-    """
-
-    x_min, x_max = kg_obj.xmin, kg_obj.xmax
-    y_min, y_max = kg_obj.ymin, kg_obj.ymax
-
-    xi = np.linspace(x_min, x_max, res_x)
-    yi = np.linspace(y_min, y_max, res_y)
-
-    filename1 = filename + ".grd"
-    filename2 = filename + ".hdr"
-    print(f"Exporting {res_x}x{res_y} grid to {filename1}...")
-
-    with open(filename1, "w") as f:
-        f.write("X,Y,Z_ESTIM,SIGMA\n")  # Header
-        for y in yi:
-            for x in xi:
-                z, s = estimate_at(kg_obj.kdata, x, y, zk=zk_vec)
-
-                if z == -999.0:
-                    f.write(f"{x:.3f},{y:.3f},nan,nan\n")
-                else:
-                    f.write(f"{x:.3f},{y:.3f},{z:.4f},{s:.4f}\n")
-
-    print(f"Export completed. Now writing metadata to {filename2}...")
-    with open(filename2, "w") as f:
-        f.write("type: GRID\n")
-        f.write(f"file: {kg_obj.kdata.title}\n")
-        f.write(f"x_col: {kg_obj.kdata.x_col}\n")
-        f.write(f"y_col: {kg_obj.kdata.y_col}\n")
-        f.write(f"z_col: {kg_obj.kdata.z_col}\n")
-        f.write(f"ntot: {kg_obj.kdata.shape[0]}\n")
-        f.write(f"nork: {kg_obj.kdata.nork}\n")
-        f.write(f"nvec: {kg_obj.kdata.nvec}\n")
-        f.write(f"zk: {zk_vec}\n")
-        f.write(f"xmin: {x_min}\n")
-        f.write(f"xmax: {x_max}\n")
-        f.write(f"ymin: {y_min}\n")
-        f.write(f"ymax: {y_max}\n")
-        f.write(f"bins: {res_x}\n")
-        f.write(f"hist: {res_y}\n")
-        f.write(f"date: {datetime.datetime.now()}\n")
-
-    print("Completed.")
-
-
-def run_gik(
-    kd_obj: "Kdata",
-) -> Tuple[np.ndarray, np.ndarray]:
+def run_gik(kd_obj: "Kdata", verbose) -> Tuple[np.ndarray, np.ndarray]:
     """Generate the generalized increment database
 
     :param kd_obj: Kdata object
     :type kd_obj: "Kdata"
+    :param verbose: print banner, defaults to True
     :return: X: Contribution matrix (N_increments, 5), Y: Vector of squared increments (N_increments)
     :rtype: tuple[np.ndarray, np.ndarray]
     """
@@ -714,7 +701,8 @@ def run_gik(
     contributions = []
     squared_increments = []
 
-    print(f"Generating GIK's for {n_points} data points...")
+    if verbose:
+        tqdm.write(f"Generating GIK's for {n_points} data points...")
 
     for i in range(n_points):
         tx, ty, tz = kd_obj.x[i], kd_obj.y[i], kd_obj.z[i]
@@ -735,7 +723,7 @@ def run_gik(
 
         # We are only interested in the lambdas (the first one is the one at the center point, -1)
         lambdas = weights[: len(neig)]
-        # The increment is: I = Z_target - Sum(lambda_j * Z_j) 
+        # The increment is: I = Z_target - Sum(lambda_j * Z_j)
         # Or in general: I = Sum(w_j * Z_j) where w_target = 1 and w_j = -lambda_j
         w = np.concatenate([[-1.0], lambdas])
         indices = np.concatenate([[i], neig])
@@ -789,7 +777,7 @@ def run_geko(
     best_zk = None
     best_model_idx = -1
 
-    print(f"\nExploring {len(models_array)} structure models...")
+    tqdm.write(f"\nExploring {len(models_array)} structure models...")
 
     for idx, mask in enumerate(models_array):
         mask = mask.astype(bool)
@@ -815,8 +803,8 @@ def run_geko(
                 best_zk = zk_full
                 best_model_idx = idx
 
-    print(f"Optimization complete! Best model: #{best_model_idx}")
-    print(f"ZK Optimum: {best_zk}")
+    tqdm.write(f"Optimization complete! Best model: #{best_model_idx}")
+    tqdm.write(f"ZK Optimum: {best_zk}")
     return best_zk
 
 
@@ -825,6 +813,7 @@ def run_full_exploration(
     X_gik: np.ndarray,
     Y_gik: np,
     models_array: np.ndarray[bool],
+    verbose: bool = True,
 ) -> tuple[np.ndarray[float], int, float, float, float]:
     """Test all 22 models, perform cross-validation for each one and save the results to kd_obj.crossvaldata
 
@@ -836,16 +825,20 @@ def run_full_exploration(
     :type Y_gik: np.ndarray
     :param models_array: model structure array
     :type models_array: np.ndarray[bool]
+    :param verbose: print results for each model, defaults to True
     :return: best model parameters
     :rtype: tuple[np.ndarray[float], int, float, float, float]
     """
-    """
-    
-    """
+
+    del kd_obj.crossvaldata
+    gc.collect()
     kd_obj.crossvaldata = []  # List to save results
 
-    print(f"{'Mod':<4} | {'MAE':<10} | {'RMSE':<10} | {'Corr':<8} | {'Status'}")
-    print("-" * 50)
+    if verbose:
+        tqdm.write(
+            f"{'Mod':<4} | {'MAE':<10} | {'RMSE':<10} | {'Corr':<8} | {'Status'}"
+        )
+        tqdm.write("-" * 50)
 
     for idx, mask in enumerate(models_array):
         # 1. GIK adjustment (Least squares to obtain zk)
@@ -868,20 +861,27 @@ def run_full_exploration(
                 # 3. Save to history
                 res = {
                     "model_idx": idx,
-                    "mask": mask,
-                    "zk": zk_full,
-                    "mae": mae,
-                    "rmse": rmse,
-                    "corr": corr,
+                    "mask": mask.copy(),  # Copia explícita
+                    "zk": zk_full.copy(),  # <--- MUY IMPORTANTE: copia física del array
+                    "mae": float(mae),  # Asegurar que son tipos nativos
+                    "rmse": float(rmse),
+                    "corr": float(corr),
                     "success": True,
                 }
                 kd_obj.crossvaldata.append(res)
 
-                print(f"{idx:<4} | {mae:<10.4f} | {rmse:<10.4f} | {corr:<8.4f} | OK")
+                if verbose:
+                    tqdm.write(
+                        f"{idx:<4} | {mae:<10.4f} | {rmse:<10.4f} | {corr:<8.4f} | OK"
+                    )
             else:
-                print(f"{idx:<4} | {'-':<10} | {'-':<10} | {'-':<8} | CV fail")
+                if verbose:
+                    tqdm.write(f"{idx:<4} | {'-':<10} | {'-':<10} | {'-':<8} | CV fail")
         else:
-            print(f"{idx:<4} | {'-':<10} | {'-':<10} | {'-':<8} | Matrix error")
+            if verbose:
+                tqdm.write(
+                    f"{idx:<4} | {'-':<10} | {'-':<10} | {'-':<8} | Matrix error"
+                )
 
     # Sort by RMSE to suggest the best one at the end
     kd_obj.crossvaldata.sort(key=lambda x: x["rmse"])
@@ -924,7 +924,7 @@ def report_models(kd_obj):
     print(f"Best model is #{sorted_models[0]['model_idx']}.")
 
 
-def get_data_path(filename: str)-> str:
+def get_data_path(filename: str) -> str:
     """Gets the absolute path to a file in the package's data folder.
 
     :param filename: file to load
@@ -933,8 +933,6 @@ def get_data_path(filename: str)-> str:
     :rtype: str
     """
     from importlib import resources
-    
-    path = resources.files('pygeko').joinpath('testdata').joinpath(filename)
+
+    path = resources.files("pygeko").joinpath("testdata").joinpath(filename)
     return str(path)
-
-

@@ -1,13 +1,15 @@
 """GRID plotting"""
 
+import gc
+import os
+import tempfile
+import webbrowser
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from matplotlib import cm  # noqa: F401
-import webbrowser
-import os
-import tempfile
 
 
 def set_xy_axes_equal_3d(ax: plt.Axes):
@@ -60,12 +62,10 @@ class Gplot:
                         key, val = line.strip().split(": ", 1)
                         self.meta[key] = val
         except FileNotFoundError:
-            print(
-                f"Warning: Metadata file not found {fnamebase}.hdr"
-            )
+            print(f"Warning: Metadata file not found {fnamebase}.hdr")
 
-# Extract dimensions and prepare 2D arrays for plotting
-# We use the column names defined in the exporter
+        # Extract dimensions and prepare 2D arrays for plotting
+        # We use the column names defined in the exporter
         self.nx = int(self.meta.get("bins", 100))
         self.ny = int(self.meta.get("hist", 100))
         print(f"{fnamebase} ({self.nx}x{self.ny}) grid successfully read.")
@@ -142,6 +142,8 @@ class Gplot:
 
         plt.tight_layout()
         plt.show()
+        plt.close("all")
+        gc.collect()
 
     def contourd(self):
         """
@@ -167,6 +169,8 @@ class Gplot:
 
         plt.tight_layout()
         plt.show()
+        plt.close("all")
+        gc.collect()
 
     def zsurf(self):
         """
@@ -184,6 +188,8 @@ class Gplot:
         # Force equal scaling in X-Y (limited in Matplotlib 3D, but it helps)
         ax.set_aspect("auto")
         plt.show()
+        plt.close("all")
+        gc.collect()
 
     def esurf(self):
         """
@@ -198,6 +204,8 @@ class Gplot:
         set_xy_axes_equal_3d(ax)  # X-Y axes equal scale !
         ax.set_title("Standard Error")
         plt.show()
+        plt.close("all")
+        gc.collect()
 
     def zsurf2(self):
         """
@@ -207,9 +215,9 @@ class Gplot:
         # We created an axis with 3D projection
         ax = fig.add_subplot(111, projection="3d")
 
-# We use plot_surface.
-# Setting rcount and ccount to 200 allows for excellent detail while maintaining fluidity.
-# plot_surface handles NaNs by leaving 'gaps' in the mesh, which is acceptable.
+        # We use plot_surface.
+        # Setting rcount and ccount to 200 allows for excellent detail while maintaining fluidity.
+        # plot_surface handles NaNs by leaving 'gaps' in the mesh, which is acceptable.
         surf = ax.plot_surface(
             self.X,
             self.Y,
@@ -246,6 +254,8 @@ class Gplot:
         ax.view_init(elev=35, azim=-120)
 
         plt.show()
+        plt.close("all")
+        gc.collect()
 
     def esurf2(self):
         """
@@ -270,6 +280,8 @@ class Gplot:
 
         fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
         plt.show()
+        plt.close("all")
+        gc.collect()
 
     def zsurf_gpu(self):
         """
@@ -288,6 +300,7 @@ class Gplot:
             scene=dict(zaxis=dict(range=[0, self.Z.max() * 1.2])),
         )
         fig.show()
+        gc.collect()
 
     def zsurf_gpu_PI(self):
         """

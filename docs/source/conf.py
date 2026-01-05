@@ -28,11 +28,16 @@ extensions = [
    'sphinx.ext.autodoc',
    'sphinx.ext.autosummary',
    'sphinx.ext.mathjax',
+   'sphinx_math_dollar',
    'sphinx_book_theme',
    'myst_parser',
    'sphinx.ext.napoleon',   # Ya incluido en Sphinx
    'sphinx_autodoc_typehints', # Instalado vía pip
+]
 
+myst_enable_extensions = [
+    "amsmath",
+    "dollarmath",
 ]
 
 templates_path = ['_templates']

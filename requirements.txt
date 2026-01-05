@@ -2,6 +2,7 @@
 
 sphinx
 myst_parser
+sphinx-math-dollar
 sphinx_book_theme
 sphinx-autodoc-typehints
 

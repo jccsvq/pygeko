@@ -3,7 +3,8 @@ pyGEKO: Fast Generalized Covariance Kriging for Python.
 """
 
 from .__about__ import __version__
-from .kdata import Kdata, Kgrid
+from .kdata import Kdata
+from .kgrid import Kgrid
 from .gplot import Gplot
 from . import utils
 

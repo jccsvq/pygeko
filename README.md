@@ -13,6 +13,7 @@
 > - 🛠️ **Installation:** The package is not yet available on PyPI. For now, please install from source using Hatch.
 > - 📖 **Documentation:** Manuals are being compiled. The full documentation site will be live soon.
 > - 🚀 **First Release:** Expected late January 2026.
+> - ⚠️ At this stage the code may still contain unused, undocumented or experimental methods or functions, as well as traces of comments in Spanish.
 
 > **Full Documentation:** [pygeko.readthedocs.io](https://pygeko.readthedocs.io)
 
@@ -43,8 +44,20 @@ PyGEKO was benchmarked processing a **1,000,000 point grid** (1000x1000) on Debi
 | --- | --- | --- | --- |
 | **Desktop PC** | Intel i7-9700K | 8 | **36.3 s** |
 | **Raspberry Pi 5** | Cortex-A76 | 3* | **~110 s** |
-| **Recommended 3-core config for thermal stability on ARM.* |  |  |  |
+> **Recommended 3-core config for thermal stability on ARM.* 
 
+### 🧠 Tuning & Optimization Benchmark
+
+The following benchmark shows the time required to perform an exhaustive search of **30 model configurations** (Testing 22 GIK models + Cross-Validation per config) using the St. Helens dataset (**5,000 points**):
+
+| Platform | CPU | Workers | Time (30 configs) | Rate |
+| --- | --- | --- | --- | --- |
+| **Desktop PC** | Intel i7-9700K | 8 | **~2 min 51 s** | 5.7 s/it |
+| **Raspberry Pi 5** | Cortex-A76 | 3* | **~10 min 10 s** | 20.4 s/it |
+
+>*\* Recommended 3-core config for thermal stability on ARM.*
+
+> **Note on Reliability:** PyGEKO uses a multiprocessing isolation strategy for tuning. Each iteration runs in a dedicated child process, ensuring 100% memory reclamation and preventing RAM accumulation even during intensive 5K+ point explorations.
 
 ## 🛠 Installation (Development Mode)
 
