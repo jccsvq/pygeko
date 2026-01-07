@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from pygeko.kgrid import Kgrid
 
 
-def _worker_tune(nork, nvec, kd_instance, verbose=True):
+def _worker_tune(nork, nvec, kd_instance, verbose):
     """
     This function runs in a separate child process.
     Upon completion, all of its memory (the 300MB leak) is lost.
@@ -498,6 +498,9 @@ def fast_preview(
     plt.tight_layout()
     plt.show()
     plt.close("all")
+    gc.collect()
+
+
 
 
 def cross_validation(

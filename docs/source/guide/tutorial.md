@@ -9,13 +9,20 @@ The functionality of `pyGEKO` is contained in the following classes:
 * `Kgrid` interpolation over a rectangular area (grid)
 * `Gplot` basic graphical functions for a quick exploration of `Kgrid` results
 
+whose use will be illustrated in this tutorial with the help of two datasets:
 
+|Dataset|Filename|Points|
+|---|---|---|
+|Mount Bear|[montebea.csv](https://github.com/jccsvq/pygeko/blob/main/src/pygeko/testdata/montebea.csv)|87|
+|Mount S. Helens|[msh5000.csv](https://github.com/jccsvq/pygeko/blob/main/src/pygeko/testdata/msh5000.csv)|5000|
+
+Both datasets are included in the package, so you won't need to download them. We'll use the first one throughout this tutorial because its small size will make calculations quick, and we'll reserve the second one for stress testing.
 
 ## `Kdata` use
 
 ### Input data
 
-`Kdata` uses a `CSV` file as input. This file must contain columns with the X and Y coordinates of the points and another with the Z values ​​of the variable to be interpolated. Throughout this tutorial, we will use the test data contained in the `montebea.csv` file, the first rows of which are:
+`Kdata` uses a `CSV` file as input. This file must contain columns with the X and Y coordinates of the points and another with the Z values ​​of the variable to be interpolated. Throughout this tutorial, we will first use the test data contained in the `montebea.csv` file, the first rows of which are:
 
 ```bash
 $ head montebea.csv
@@ -32,7 +39,24 @@ id,heigth,easting,northing
 9,1760.0,549.0,1223.0
 ```
 
-Create a working directory for your tests and access it with the `cd` command. If you cloned the repository, you have the `montebea.csv` file in `/repositorypath/src/pygeko/testdata` and you can copy it to your working directory. In either case, the file can also be accessed from the installed package, as we will see.
+and we will reserve `msh5000.csv` for stress testing.
+
+```bash
+$ head msh5000.csv 
+
+X,Y,Z
+753.0,219.0,23689.0
+671.0,125.0,16955.0
+622.0,175.0,18778.0
+303.0,560.0,29703.0
+150.0,320.0,20719.0
+663.0,716.0,24650.0
+817.0,764.0,15174.0
+12.0,711.0,21773.0
+664.0,765.0,20776.0
+```
+
+
 
 
 
@@ -42,45 +66,50 @@ Create a working directory for your tests and access it with the `cd` command. I
 
 The core of `Kdata` is a [`pandas.DataFrame`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) object; in fact, all the arguments used in the creation of a `Kdata` object are passed directly to [`pandas.read_csv()`](https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html#pandas.read_csv), so that you can use all the functionality of this method to read your `CSV` files. Furthermore, `Kdata` inherits all the attributes of `pandas.DataFrame` so that you can analyze and modify your data just as you would with `pandas`. Let's proceed to create a `Kdata` object:
 
-If you copied the file `montebea.csv` to your working directory, you can start:
+Create a working directory for your tests and access it with the `cd` command, then run the `pygeko` command. `pygeko` is a custom `python3` interpreter that already has the three classes from this package imported and contains some additional definitions.
 
 ```bash
-$ python
-Python 3.11.2 (main, Apr 28 2025, 14:11:48) [GCC 12.2.0] on linux
-Type "help", "copyright", "credits" or "license" for more information.
+$ pygeko
+
+Welcome to pyGEKO-Kriger 0.9.0
+Generalized Covariance Kriger
+    
+Classes Kdata, Kgrid and Gplot imported.
+
+Use exit() or Ctrl-D (i.e. EOF) to exit.
+
+-->
 ```
 
+(`--> ` is the prompt) Let us create our first `Kdata` object. If the file `montebea.csv` were in our directory we would use:
+
 ```python
->>> from pygeko.kdata import Kdata
->>> kd = Kdata("montebea.csv")
+--> kd = Kdata("montebea.csv")
+```
+
+but the file has been installed with the distribution in some other location which we can find in the `montebea` variable within `pygeko`:
+
+```python
+--> montebea
+'/home/jesus/Nextcloud/gck/src/pygeko/testdata/montebea.csv' # Almost sure you see a different path!
+```
+so we write:
+
+```python
+--> kd = Kdata(montebea)
 Column names default to "X", "Y" and "Z"
 nvec dafaults to: 12 and nork to: 1
 Please, adapt these parameter to your problem!
+
+--> 
 ```
-
-The object `kd` has been created!
-
-But, if you installed the package from `pypi.org` start by:
-
-```python
->>> from pygeko.kdata import Kdata
->>> from pygeko.utils import get_data_path
->>> kd=Kdata(get_data_path("montebea.csv"))
-Column names default to "X", "Y" and "Z"
-nvec dafaults to: 12 and nork to: 1
-Please, adapt these parameter to your problem!
-```
-
-
 
 > Please note that we received an alert regarding default assumptions made by `Kdata`. We will return to this soon.
-
-> Note also that we could have started the session with the `pygeko` command, in which case both the classes and the `get_data_path` function are pre-imported and we can proceed directly to creating the object.
 
 Let's explore our object:
 
 ```python
->>> kd.status
+--> kd.status
 
 Data properties:
               id       heigth     easting     northing
@@ -102,22 +131,22 @@ z_col: Z
 Scale: None
 
 
->>> 
+-->
 ```
 
 Our X, Y, and Z data are contained in the `easting`, `northing`, and `height` columns. Let's heed the alert received and inform `Kdata` that we wish to use these columns in our problem:
 
 ```python
-kd.x_col = "easting"    # which column of the dataset to use as X
-kd.y_col = "northing"   # which column of the dataset to use as Y
-kd.z_col = "heigth"     # which column of the dataset to use as Z
->>> 
+--> kd.x_col = "easting"    # which column of the dataset to use as X
+--> kd.y_col = "northing"   # which column of the dataset to use as Y
+--> kd.z_col = "heigth"     # which column of the dataset to use as Z
+--> 
 ```
 
 Let'us explore again:
 
 ```python
->>> kd.status
+--> kd.status
 
 Data properties:
               id       heigth     easting     northing
@@ -139,7 +168,7 @@ z_col: heigth
 Scale: None
 
 
->>> 
+--> 
 ```
 
 There were two other default values ​​mentioned in the alert: `nork` and `nvec`
@@ -150,24 +179,24 @@ There were two other default values ​​mentioned in the alert: `nork` and `nv
 We could change them using:
 
 ```python
->>> kd.nork = 2
->>> kd.nvec = 14
+--> kd.nork = 2
+--> kd.nvec = 14
 ```
 
 but for now we'll leave them as they are.
 
 (If you're curious why these integer variables start with "n", the answer lies in the `Fortran` used by the author in the late 1980s to code this algorithm. See the [`gck` project](https://github.com/jccsvq/gck) for more details.)
 
-We can visualize our data with two previews:
+We can visualize our data with two graphical previews:
 
 ```python
->>> kd.plot()
+--> kd.plot()
 ```
 
 ![mbplot](../_static/mbplot.png)
 
 ```python
-kd.trisurf()
+--> kd.trisurf()
 ```
 
 ![mbtrisurf](../_static/mbtrisurf.png)
@@ -220,12 +249,11 @@ where $Z_k$ are the **model parameters** (`zk` variable in the source files) and
 
 ### Manual analysis
 
-Once we have created and configured our `Kdata` object, we can proceed to analyze it using the `.analyze()` method. This will generate generalized increments of order *k* from the points and fit the 21 generalized covariance models, testing them by a **leave-one-out cross-validation** method. This method only accepts one boolean parameter to decide whether to present a preview of what the krigin of our data would be with the best model found for the values ​​of `nork` and `nvec` used.
+Once we have created and configured our `Kdata` object, we can proceed to analyze it using the `.analyze()` method. This will generate generalized increments of order *k* from the data points and fit the 21 generalized covariance models, testing them by a **leave-one-out cross-validation** method. This method accepts one boolean parameter to decide whether to present a preview of what the krigin of our data would be with the best model found for the values ​​of `nork` and `nvec` used. If you're eager to see what your first kriging results using generalized covariances would look like, make sure you set the switch to True!
 
 ```python
->>> kd.analyze(preview=True) # default for preview is True
-
-Generating GIK's for 87 data points...
+--> kd.analyze(preview=True)
+Executing isolated analysis (NORK=1, NVEC=12)...
 Mod  | MAE        | RMSE       | Corr     | Status
 --------------------------------------------------
 0    | 131.0157   | 170.1328   | 0.7599   | OK
@@ -258,7 +286,11 @@ Validated points: 85 / 87
 Mean Absolute Error (MAE): 122.9569
 Root Mean Square Error (RMSE): 169.5708
 Correlation Coefficient: 0.7604
+
+[OK] Saved: montebea_1_12.gck
+     MAE: 122.95693486762474 | nork: 1 | nvec: 12
 Interpolating 50x50 grid...
+-->
 ```
 
 The preview image should open in a new window:
@@ -271,7 +303,7 @@ This image is a preview of what you can get with `Kgrid`.
 Once you close the image, let'us explore again our object:
 
 ```python
->>> kd.status
+--> kd.status
 
 Data properties:
               id       heigth     easting     northing
@@ -321,24 +353,27 @@ RANK  | MOD  | MAE        | RMSE       | CORR     | ZK (Coefficients)
 Best model is #20.
 
 
->>> 
+--> 
 ```
-We observe some changes here. First, there is a "Scale" property that is used in the calculations to stabilize the covariance matrix. Second, we now have the result of adjusting all the models and the indication of the optimum (lowest MAE value), in this case at #20.
+We observe some changes here.
+
+* First, there is a `Scale` property that is used in the calculations to stabilize the covariance matrix. 
+* Second, we now have the result of adjusting all the models and the indication of the optimum (lowest MAE value), in this case at #20.
 
 `analyze` is a time-intensive function, its cost depending linearly on the number of points in the dataset. To avoid tedious recalculations, you can use the `save` and `restore` methods, which will write the results to a `.gck` file that can be used at any time to reconstruct the `Kdata` object.
 
 ```python
->>> kd.save()
+--> kd.save()
 
 [OK] Saved: montebea_1_12.gck
      MAE: 122.95693486762474 | nork: 1 | nvec: 12
->>> 
+--> 
 ```
 
-Now let's create a second object using `recover`
+To see how this file may be used let's create a second object using `recover`
 
 ```python
->>> kd2=Kdata("montebea.csv")
+--> kd2=Kdata("montebea.csv")
 Column names default to "X", "Y" and "Z"
 nvec dafaults to: 12 and nork to: 1
 Please, adapt these parameter to your problem!
@@ -348,14 +383,14 @@ Please, adapt these parameter to your problem!
           Model: 20 | nork: 1 | nvec: 12
           Original validation: MAE=122.95693486762474
           KDTree regenerated for 87 points.
->>> 
+--> 
 ```
 
 Let'us explore `kd2`:
 
 
 ```python
->>> kd2.status
+--> kd2.status
 
 Data properties:
               id       heigth     easting     northing
@@ -405,14 +440,14 @@ RANK  | MOD  | MAE        | RMSE       | CORR     | ZK (Coefficients)
 Best model is #20.
 
 
->>> 
+--> 
 ```
 
 The object has been reproduced. Let's get rid of `kd2`, as we no longer need it.
 
 ```python
->>> del kd2
->>>
+--> del kd2
+-->
 ``` 
 
 ### Analysis automation

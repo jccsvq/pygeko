@@ -2,7 +2,8 @@
 
 import time
 import gc
-from pygeko.kdata import Kdata, Kgrid
+from pygeko.kdata import Kdata
+from pygeko.kgrid import Kgrid
 from pygeko.utils import get_data_path
 
 def main():

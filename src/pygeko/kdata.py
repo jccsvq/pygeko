@@ -358,7 +358,11 @@ class Kdata:
         # Garbage collection
         gc.collect()
         if preview:
-            self.preview()
+            fast_preview(self, self.crossvaldata[0]["zk"])
+            plt.close("all")
+            gc.collect()
+
+
 
     def save(self, verbose=True):
         """
@@ -449,7 +453,7 @@ class Kdata:
         with mp.Pool(processes=get_optimal_workers(), maxtasksperchild=1) as pool:
             # Prepare the calls
             multiple_results = [
-                pool.apply_async(_worker_tune, (nk, nv, self)) for nk, nv in configs
+                pool.apply_async(_worker_tune, (nk, nv, self, False)) for nk, nv in configs
             ]
 
             # Collect results with a progress bar
@@ -468,10 +472,10 @@ class Kdata:
         print(f"\n\n{'=' * 40}")
         print(" TUNING RESULT")
         print(f"{'=' * 40}")
-        print(df_tuning.to_string(index=False))
-        print(f"{'=' * 40}")
+        #print(df_tuning.to_string(index=False))
         print(f"Best setting: nork={best.nork}, nvec={best.nvec}")
         print(f"Minimum MAE: {best.mae:.4f} (Model #{int(best.model_id)})")
+        print(f"{'=' * 40}")
 
         # We leave the object configured with the best parameters
         # self._execute_analysis(nork=int(best.nork), nvec=int(best.nvec))
