@@ -145,3 +145,7 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+.. Este bloque es invisible pero fuerza a Sphinx a incluir la imagen grande
+.. image:: _static/msh-rpi.jpg
+   :width: 0
