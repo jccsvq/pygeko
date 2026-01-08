@@ -83,19 +83,19 @@ Use exit() or Ctrl-D (i.e. EOF) to exit.
 
 (`--> ` is the prompt) Let us create our first `Kdata` object. If the file `montebea.csv` were in our directory we would use:
 
-```python
+```bash
 --> kd = Kdata("montebea.csv")
 ```
 
 but the file has been installed with the distribution in some other location which we can find in the `montebea` variable within `pygeko`:
 
-```python
+```bash
 --> montebea
 '/home/jesus/Nextcloud/gck/src/pygeko/testdata/montebea.csv' # Almost sure you see a different path!
 ```
 so we write:
 
-```python
+```bash
 --> kd = Kdata(montebea)
 Column names default to "X", "Y" and "Z"
 nvec dafaults to: 12 and nork to: 1
@@ -108,7 +108,7 @@ Please, adapt these parameter to your problem!
 
 Let's explore our object:
 
-```python
+```bash
 --> kd.status
 
 Data properties:
@@ -136,7 +136,7 @@ Scale: None
 
 Our X, Y, and Z data are contained in the `easting`, `northing`, and `height` columns. Let's heed the alert received and inform `Kdata` that we wish to use these columns in our problem:
 
-```python
+```bash
 --> kd.x_col = "easting"    # which column of the dataset to use as X
 --> kd.y_col = "northing"   # which column of the dataset to use as Y
 --> kd.z_col = "heigth"     # which column of the dataset to use as Z
@@ -145,7 +145,7 @@ Our X, Y, and Z data are contained in the `easting`, `northing`, and `height` co
 
 Let'us explore again:
 
-```python
+```bash
 --> kd.status
 
 Data properties:
@@ -178,7 +178,7 @@ There were two other default values ​​mentioned in the alert: `nork` and `nv
 
 We could change them using:
 
-```python
+```bash
 --> kd.nork = 2
 --> kd.nvec = 14
 ```
@@ -189,13 +189,13 @@ but for now we'll leave them as they are.
 
 We can visualize our data with two graphical previews:
 
-```python
+```bash
 --> kd.plot()
 ```
 
 ![mbplot](../_static/mbplot.png)
 
-```python
+```bash
 --> kd.trisurf()
 ```
 
@@ -251,7 +251,7 @@ where $Z_k$ are the **model parameters** (`zk` variable in the source files) and
 
 Once we have created and configured our `Kdata` object, we can proceed to analyze it using the `.analyze()` method. This will generate generalized increments of order *k* from the data points and fit the 21 generalized covariance models, testing them by a **leave-one-out cross-validation** method. This method accepts one boolean parameter to decide whether to present a preview of what the krigin of our data would be with the best model found for the values ​​of `nork` and `nvec` used. If you're eager to see what your first kriging results using generalized covariances would look like, make sure you set the switch to True!
 
-```python
+```bash
 --> kd.analyze(preview=True)
 Executing isolated analysis (NORK=1, NVEC=12)...
 Mod  | MAE        | RMSE       | Corr     | Status
@@ -302,7 +302,7 @@ This image is a preview of what you can get with `Kgrid`.
 
 Once you close the image, let'us explore again our object:
 
-```python
+```bash
 --> kd.status
 
 Data properties:
@@ -362,7 +362,7 @@ We observe some changes here.
 
 `analyze` is a time-intensive function, its cost depending linearly on the number of points in the dataset. To avoid tedious recalculations, you can use the `save` and `restore` methods, which will write the results to a `.gck` file that can be used at any time to reconstruct the `Kdata` object.
 
-```python
+```bash
 --> kd.save()
 
 [OK] Saved: montebea_1_12.gck
@@ -372,7 +372,7 @@ We observe some changes here.
 
 To see how this file may be used let's create a second object using `recover`
 
-```python
+```bash
 --> kd2=Kdata("montebea.csv")
 Column names default to "X", "Y" and "Z"
 nvec dafaults to: 12 and nork to: 1
@@ -389,7 +389,7 @@ Please, adapt these parameter to your problem!
 Let'us explore `kd2`:
 
 
-```python
+```bash
 --> kd2.status
 
 Data properties:
@@ -445,7 +445,7 @@ Best model is #20.
 
 The object has been reproduced. Let's get rid of `kd2`, as we no longer need it.
 
-```python
+```bash
 --> del kd2
 -->
 ``` 
@@ -454,67 +454,35 @@ The object has been reproduced. Let's get rid of `kd2`, as we no longer need it.
 
 The next and final step in this tutorial on `Kdata` is automating the previous analysis. The `.tune()` method allows us to iterate the previous process over a grid of `nork` and `nvec` values ​​and store the results in the corresponding `GCK` files, so we don't have to repeat this time-consuming process in the future.
 
-```python
+```bash
 
 >>> tune_report = kd.tune(nvec_list=range(8, 17, 2), nork_list=[0, 1, 2])
 
-Starting scan of 15 combinations...
-Generating GIK's for 87 data points...
-
-Validating best model...
-Starting Cross-Validation in 87 points...
-
---- CROSS-VALIDATION SUMMARY ---
-Validated points: 85 / 87
-Mean Absolute Error (MAE): 122.3447
-Root Mean Square Error (RMSE): 167.8902
-Correlation Coefficient: 0.7634
-
-[OK] Saved: montebea_0_8.gck
-     MAE: 122.34469974075041 | nvec: 8
-```
-a long listing follows ... but you have a progress bar at the botton:
-
-```bash
-[TUNING SCAN]: 100%|████████████████████████████| 15/15 [00:08<00:00,  1.83it/s]
-
-```
-
-Now let'us try:
-
-```python
-
->>> kd.plot_tuning_results(tune_report)
+Starting isolated scan of 15 combinations...
+[TUNING SCAN]: 100%|████████████████████████████| 15/15 [00:01<00:00, 10.90it/s]
 
 
 ========================================
  TUNING RESULT
 ========================================
- nork  nvec  model_id        mae       rmse     corr
-    0     8        17 122.344700 167.890235 0.763376
-    0    10        16 122.407479 167.425868 0.765566
-    0    12        11 122.003204 167.831532 0.764883
-    0    14        16 121.366692 167.534341 0.766684
-    0    16        11 121.629493 167.959133 0.765885
-    1     8         0 126.445588 170.100559 0.754191
-    1    10         0 124.965882 167.926027 0.764731
-    1    12        20 122.956935 169.570788 0.760423
-    1    14        20 121.331700 167.144087 0.768756
-    1    16        18 121.650653 167.421264 0.768497
-    2     8         0 129.870813 171.107253 0.750874
-    2    10         0 138.042641 181.813895 0.716072
-    2    12         0 129.459237 173.553945 0.741762
-    2    14         0 124.783077 167.687974 0.762002
-    2    16         0 128.726378 171.327919 0.751042
-========================================
-Best setting: nork=1.0, nvec=14.0
+Best setting: nork=1, nvec=14
 Minimum MAE: 121.3317 (Model #20)
+========================================
 
 [RESTORE] Configuration recovered:
           Model: 20 | nork: 1 | nvec: 14
           Original validation: MAE=121.33169956379052
           KDTree regenerated for 87 points.
-tune() took: 8.48918890953064 seconds
+
+
+```
+
+Now let'us try:
+
+```bash
+
+>>> kd.plot_tuning_results(tune_report)
+
 [PLOT] Heatmap saved to: montebea_tuning.png
 ```
 Now, the saved image opens in a new windows:
@@ -559,16 +527,534 @@ montebea_2_8.gck               | 01-02  | 2     | 8     |  129.871 |  171.107 | 
 
 ```
 
+So after running `.tune` we end up with a series of `.gck` files containing the fitting and evaluation results of the 21 generalized covariance models for each pair of `nork` and `nvec` values ​​tested, so that, in principle, we should never have to repeat these calculations again.
 
+### Hard test
+
+The previous tests with 87 points are almost instantaneous on a modern computer. Let's now try repeating the process with a dataset of 5000 points. Let's start a fresh session with `pygeko` after moving to another working directory:
+
+```bash
+$ pygeko
+
+Welcome to pyGEKO-Kriger 0.9.0
+Generalized Covariance Kriger
+    
+Classes Kdata, Kgrid and Gplot imported.
+
+Use exit() or Ctrl-D (i.e. EOF) to exit.
+
+--> kd = Kdata(msh5000)
+Column names default to "X", "Y" and "Z"
+nvec dafaults to: 12 and nork to: 1
+Please, adapt these parameter to your problem!
+
+--> kd.status
+
+Data properties:
+                 X           Y             Z
+count  5000.000000  5000.00000   5000.000000
+mean    506.529200   511.33540  19371.774800
+std     296.105404   298.97883  10046.028902
+min       0.000000     0.00000   1142.000000
+25%     249.750000   254.00000  12684.750000
+50%     499.000000   509.50000  17286.500000
+75%     755.000000   771.00000  23099.500000
+max    1024.000000  1024.00000  63147.000000
+
+Setting:
+x_col: X
+y_col: Y
+z_col: Z
+ nork: 1
+ nvec: 12
+Scale: None
+
+
+--> 
+```
+This time, we don't need to adjust the column names since the dataset contains exactly the names X, Y, and Z. However, as we can see above, column Z contains much larger values ​​than X and Y. For kriging stability, especially for the covariance matrices involved, it's best if the Z variable is within the same order of magnitude as the coordinates. We proceed to divide column Z by 60.
+
+```bash
+--> kd.Z /= 60.0  # Normalization for numerical stability!
+--> kd.status
+
+Data properties:
+                 X           Y            Z
+count  5000.000000  5000.00000  5000.000000
+mean    506.529200   511.33540   322.862913
+std     296.105404   298.97883   167.433815
+min       0.000000     0.00000    19.033333
+25%     249.750000   254.00000   211.412500
+50%     499.000000   509.50000   288.108333
+75%     755.000000   771.00000   384.991667
+max    1024.000000  1024.00000  1052.450000
+
+Setting:
+x_col: X
+y_col: Y
+z_col: Z
+ nork: 1
+ nvec: 12
+Scale: None
+
+
+--> 
+
+```
+
+we will also change the `nork` and `nvec` parameters:
+
+```bash
+--> kd.nork = 1
+--> kd.nvec = 20
+--> 
+```
+
+Let us have a look at data:
+
+```bash
+--> kd.plot()
+```
+![mshplot](../_static/mshplot.png)
+
+```bash
+--> kd.trisurf()
+```
+![mshtrisurf](../_static/mshtrisurf.png)
+
+Let us proceed with `.analyze`
+
+```bash
+--> kd.analyze(preview = True)
+Executing isolated analysis (NORK=1, NVEC=20)...
+Mod  | MAE        | RMSE       | Corr     | Status
+--------------------------------------------------
+0    | 17.1245    | 25.1040    | 0.9889   | OK
+1    | 6.3255     | 10.3339    | 0.9981   | OK
+2    | 9.1806     | 46.2335    | 0.9639   | OK
+3    | 129.9823   | 3759.8484  | 0.0437   | OK
+4    | 5.6252     | 9.1849     | 0.9985   | OK
+5    | 6.3255     | 10.3339    | 0.9981   | OK
+6    | 9.1806     | 46.2335    | 0.9639   | OK
+7    | 129.9823   | 3759.8484  | 0.0437   | OK
+8    | 5.6252     | 9.1849     | 0.9985   | OK
+9    | 6.3251     | 10.3331    | 0.9981   | OK
+10   | 6.3255     | 10.3339    | 0.9981   | OK
+11   | 6.8149     | 11.1719    | 0.9978   | OK
+12   | 8.0154     | 30.4718    | 0.9837   | OK
+13   | 5.6252     | 9.1848     | 0.9985   | OK
+14   | 6.3251     | 10.3331    | 0.9981   | OK
+15   | 6.3255     | 10.3339    | 0.9981   | OK
+16   | 6.8149     | 11.1719    | 0.9978   | OK
+17   | 6.3251     | 10.3330    | 0.9981   | OK
+18   | 6.6013     | 10.8082    | 0.9979   | OK
+19   | 6.3251     | 10.3330    | 0.9981   | OK
+20   | 6.6013     | 10.8082    | 0.9979   | OK
+
+Validating best model...
+Starting Cross-Validation in 5000 points...
+
+--- CROSS-VALIDATION SUMMARY ---
+Validated points: 4999 / 5000
+Mean Absolute Error (MAE): 5.6252
+Root Mean Square Error (RMSE): 9.1848
+Correlation Coefficient: 0.9985
+
+[OK] Saved: msh5000_1_20.gck
+     MAE: 5.625207187853923 | nork: 1 | nvec: 20
+Interpolating 50x50 grid...
+```
+![mshpreview](../_static/mshpreview.png)
+
+The process took considerably longer than with the Montebea dataset, about 36 seconds on an Intel i7 at 3.6 GHz and about 50 seconds on a 8 GB RAM Raspberry Pi 5. 
+Now, let us *tune* Mt. St. Helens!
+
+```bash
+--> tune_report = kd.tune(nvec_list=range(14, 33, 2), nork_list=[0, 1, 2])
+Starting isolated scan of 30 combinations...
+[TUNING SCAN]: 100%|████████████████████████████| 30/30 [02:52<00:00,  5.76s/it]
+
+
+========================================
+ TUNING RESULT
+========================================
+Best setting: nork=1, nvec=20
+Minimum MAE: 5.6252 (Model #13)
+========================================
+
+[RESTORE] Configuration recovered:
+          Model: 13 | nork: 1 | nvec: 20
+          Original validation: MAE=5.625207187853923
+          KDTree regenerated for 5000 points.
+-->
+```
+The progress bar indicates that the process took almost three minutes on an 8-core Intel i7 at 3.6 GHz, 
+while the progress bar corresponding to the Raspberry Pi 5:
+
+```bash
+[TUNING SCAN]: 100%|████████████████████████████| 30/30 [10:17<00:00, 20.60s/it]
+```
+indicates about 10 minutes. These are parallel calculations; the i7 uses 8 cores while the Raspberry Pi only uses 3.
+
+From another terminal we can see that 30 `.gck` files have been created:
+
+
+```bash
+$ ls *.gck
+msh5000_0_14.gck  msh5000_0_30.gck  msh5000_1_26.gck  msh5000_2_22.gck
+msh5000_0_16.gck  msh5000_0_32.gck  msh5000_1_28.gck  msh5000_2_24.gck
+msh5000_0_18.gck  msh5000_1_14.gck  msh5000_1_30.gck  msh5000_2_26.gck
+msh5000_0_20.gck  msh5000_1_16.gck  msh5000_1_32.gck  msh5000_2_28.gck
+msh5000_0_22.gck  msh5000_1_18.gck  msh5000_2_14.gck  msh5000_2_30.gck
+msh5000_0_24.gck  msh5000_1_20.gck  msh5000_2_16.gck  msh5000_2_32.gck
+msh5000_0_26.gck  msh5000_1_22.gck  msh5000_2_18.gck
+msh5000_0_28.gck  msh5000_1_24.gck  msh5000_2_20.gck
+```
+From another terminal:
+
+```bash
+lsgck 
+Scanning directory: /home/jesus/Nextcloud/gck/pruebas/mshelen
+
+=====================================================================================================
+File                           | Date   | nork  | nvec  | MAE      | RMSE     | CORR     | Model     
+-----------------------------------------------------------------------------------------------------
+montebea_1_14.gck              | 01-07  | 1     | 14    |  121.332 |  167.144 | 0.768756 | 20        
+msh5000_0_14.gck               | 01-07  | 0     | 14    |  5.72611 |  9.31035 | 0.998454 | 8         
+msh5000_0_16.gck               | 01-07  | 0     | 16    |  5.76409 |  9.58759 |  0.99836 | 8         
+msh5000_0_18.gck               | 01-07  | 0     | 18    |  5.78288 |  9.53691 | 0.998377 | 8         
+msh5000_0_20.gck               | 01-07  | 0     | 20    |  5.85565 |  9.83475 | 0.998274 | 8         
+msh5000_0_22.gck               | 01-07  | 0     | 22    |  6.32957 |  10.3498 | 0.998098 | 18        
+msh5000_0_24.gck               | 01-07  | 0     | 24    |  6.31202 |  10.3299 | 0.998104 | 18        
+msh5000_0_26.gck               | 01-07  | 0     | 26    |   6.3004 |  10.3119 |  0.99811 | 18        
+msh5000_0_28.gck               | 01-07  | 0     | 28    |  6.29507 |  10.3037 | 0.998113 | 20        
+msh5000_0_30.gck               | 01-07  | 0     | 30    |  6.29384 |   10.305 | 0.998112 | 18        
+msh5000_0_32.gck               | 01-07  | 0     | 32    |  6.29199 |  10.3007 | 0.998113 | 18        
+msh5000_1_14.gck               | 01-07  | 1     | 14    |  5.66815 |  9.23544 | 0.998479 | 13        
+msh5000_1_16.gck               | 01-07  | 1     | 16    |   5.6565 |  9.21246 | 0.998486 | 13        
+msh5000_1_18.gck               | 01-07  | 1     | 18    |  5.64279 |  9.21242 | 0.998486 | 13        
+msh5000_1_20.gck               | 01-07  | 1     | 20    |  5.62521 |  9.18476 | 0.998495 | 13        
+msh5000_1_22.gck               | 01-07  | 1     | 22    |   5.6364 |  9.20005 |  0.99849 | 13        
+msh5000_1_24.gck               | 01-07  | 1     | 24    |  5.63548 |  9.19139 | 0.998492 | 13        
+msh5000_1_26.gck               | 01-07  | 1     | 26    |  5.63286 |  9.18491 | 0.998494 | 13        
+msh5000_1_28.gck               | 01-07  | 1     | 28    |  5.63332 |  9.18029 | 0.998496 | 13        
+msh5000_1_30.gck               | 01-07  | 1     | 30    |  5.63607 |  9.18178 | 0.998495 | 13        
+msh5000_1_32.gck               | 01-07  | 1     | 32    |   5.6303 |  9.17123 | 0.998499 | 13        
+msh5000_2_14.gck               | 01-07  | 2     | 14    |  5.73108 |   9.3363 | 0.998444 | 13        
+msh5000_2_16.gck               | 01-07  | 2     | 16    |  5.69772 |  9.30471 | 0.998455 | 13        
+msh5000_2_18.gck               | 01-07  | 2     | 18    |  5.68289 |  9.28981 |  0.99846 | 13        
+msh5000_2_20.gck               | 01-07  | 2     | 20    |   5.6624 |  9.24796 | 0.998474 | 8         
+msh5000_2_22.gck               | 01-07  | 2     | 22    |  5.65936 |  9.23767 | 0.998477 | 4         
+msh5000_2_24.gck               | 01-07  | 2     | 24    |  5.65469 |  9.23181 | 0.998479 | 13        
+msh5000_2_26.gck               | 01-07  | 2     | 26    |  5.64736 |  9.20701 | 0.998487 | 13        
+msh5000_2_28.gck               | 01-07  | 2     | 28    |  5.64908 |  9.20855 | 0.998487 | 13        
+msh5000_2_30.gck               | 01-07  | 2     | 30    |   5.6448 |  9.20893 | 0.998486 | 13        
+msh5000_2_32.gck               | 01-07  | 2     | 32    |  5.63463 |     9.19 | 0.998493 | 13        
+=====================================================================================================
+
+```
+
+Now we obtain the heatmap:
+
+```bash
+--> kd.plot_tuning_results(tune_report)
+[PLOT] Heatmap saved to: msh5000_tuning.png
+```
+![msh5000_tuning](../_static/msh5000_tuning.png)
+
+which tells us that the best combination of parameters is `nork = 1` and `nvec = 20`.
+
+Once we have analyzed or tuned into a problem, the moment of truth arrives: kriging.
 
 ## `Kgrid` use
 
+The `Kgrid` class handles surface kriging over a rectangular area.
+
+### Input data
+
+Creating a `Kgrid` object requires the following input parameters:
+
+* The `Kdata` object (analyzed).
+* The rectangular area to be covered by interpolation, defined by
+  - min X
+  - max X
+  - min Y
+  - max Y
+* The grid resolution.
+  - `bins`, number of X values to use.
+  - `hist`, number of Y values to use.
+
+Let's start a new `pygekoo` session in the working directory where we analyzed the `montebea.csv` dataset and recreate the analyzed `Kdata` object using the `montebea_1_14.gck` file:
+
+```bash
+$ pygeko
+
+Welcome to pyGEKO-Kriger 0.9.0
+Generalized Covariance Kriger
+    
+Classes Kdata, Kgrid and Gplot imported.
+
+Use exit() or Ctrl-D (i.e. EOF) to exit.
+
+--> kd = Kdata(montebea)
+Column names default to "X", "Y" and "Z"
+nvec dafaults to: 12 and nork to: 1
+Please, adapt these parameter to your problem!
+
+--> kd.restore("montebea_1_14.gck")
+
+[RESTORE] Configuration recovered:
+          Model: 20 | nork: 1 | nvec: 14
+          Original validation: MAE=121.33169956379052
+          KDTree regenerated for 87 points.
+--> kd.status
+
+Data properties:
+              id       heigth     easting     northing
+count  87.000000    87.000000   87.000000    87.000000
+mean   44.000000  1455.034483  529.977011   721.977011
+std    25.258662   266.054263  287.419836   410.964973
+min     1.000000   800.000000   34.000000    42.000000
+25%    22.500000  1271.000000  294.500000   372.000000
+50%    44.000000  1500.000000  539.000000   682.000000
+75%    65.500000  1616.000000  775.000000  1099.000000
+max    87.000000  2030.000000  992.000000  1390.000000
+
+Setting:
+x_col: easting
+y_col: northing
+z_col: heigth
+ nork: 1
+ nvec: 14
+Scale: 134.8
+
+Cross validation data follows:
+
+RANK  | MOD  | MAE        | RMSE       | CORR     | ZK (Coefficients)
+----------------------------------------------------------------------------------------------------
+★ 1   | 20   | 121.3317   | 167.1441   | 0.7688   | [9.26e-16 -1.25e+03 1.95e-02 0.00e+00 -9.33e+00]
+  2   | 18   | 121.3317   | 167.1441   | 0.7688   | [0.00e+00 -1.25e+03 1.95e-02 0.00e+00 -9.33e+00]
+  3   | 11   | 121.3667   | 167.2586   | 0.7685   | [0.00e+00 -5.53e+02 0.00e+00 0.00e+00 -1.78e+00]
+  4   | 16   | 121.3667   | 167.2586   | 0.7685   | [-5.47e-16 -5.53e+02 0.00e+00 0.00e+00 -1.78e+00]
+  5   | 19   | 121.3926   | 167.3437   | 0.7683   | [-1.74e-16 -4.23e+02 -6.60e-03 1.11e-08 0.00e+00]
+  6   | 17   | 121.3926   | 167.3437   | 0.7683   | [0.00e+00 -4.23e+02 -6.60e-03 1.11e-08 0.00e+00]
+  7   | 9    | 121.3928   | 167.3443   | 0.7683   | [0.00e+00 -3.53e+02 -3.23e-03 0.00e+00 0.00e+00]
+  8   | 14   | 121.3928   | 167.3443   | 0.7683   | [-1.48e-16 -3.53e+02 -3.23e-03 0.00e+00 0.00e+00]
+  9   | 15   | 121.3930   | 167.3451   | 0.7683   | [-2.05e-19 -2.78e+02 0.00e+00 -5.41e-09 0.00e+00]
+  10  | 10   | 121.3930   | 167.3451   | 0.7683   | [0.00e+00 -2.78e+02 0.00e+00 -5.41e-09 0.00e+00]
+  11  | 1    | 121.3930   | 167.3451   | 0.7683   | [0.00e+00 -2.69e+02 0.00e+00 0.00e+00 0.00e+00]
+  12  | 5    | 121.3930   | 167.3451   | 0.7683   | [2.17e-17 -2.69e+02 0.00e+00 0.00e+00 0.00e+00]
+  13  | 0    | 136.7571   | 178.9741   | 0.7321   | [-1.97e+18 0.00e+00 0.00e+00 0.00e+00 0.00e+00]
+  14  | 13   | 129.7004   | 183.5840   | 0.7349   | [0.00e+00 0.00e+00 -9.95e-03 0.00e+00 3.27e+00]
+  15  | 8    | 129.7364   | 183.6457   | 0.7347   | [1.15e-21 0.00e+00 0.00e+00 0.00e+00 1.56e+00]
+  16  | 4    | 129.7364   | 183.6457   | 0.7347   | [0.00e+00 0.00e+00 0.00e+00 0.00e+00 1.56e+00]
+  17  | 12   | 140.8084   | 200.0075   | 0.7005   | [0.00e+00 0.00e+00 1.11e-02 -3.05e-08 0.00e+00]
+  18  | 2    | 140.8116   | 200.0118   | 0.7005   | [0.00e+00 0.00e+00 7.74e-03 0.00e+00 0.00e+00]
+  19  | 6    | 140.8116   | 200.0118   | 0.7005   | [4.72e-26 0.00e+00 7.74e-03 0.00e+00 0.00e+00]
+  20  | 3    | 205.2296   | 472.9836   | 0.4287   | [0.00e+00 0.00e+00 0.00e+00 1.59e-08 0.00e+00]
+  21  | 7    | 205.2296   | 472.9836   | 0.4287   | [7.65e-37 0.00e+00 0.00e+00 1.59e-08 0.00e+00]
+----------------------------------------------------------------------------------------------------
+Best model is #20.
+
+
+--> 
+```
+The `Kdata` object has been recreated and verified. Let's now create the `Kgrid` object with:
+
+* The `Kdata` object (analyzed) *kd*
+* The rectangular area to be covered by interpolation, defined by
+  - min X *0*
+  - max X *1000*
+  - min Y *0*
+  - max Y *1400*
+* The grid resolution.
+  - `bins`, number of X values to use. *500*
+  - `hist`, number of Y values to use. *700*
+
+```bash
+
+--> kg = Kgrid(kd, 0, 1000, 0, 1400, bins = 500, hist = 700)
+-->
+```
+
+Let's check it out:
+
+```bash
+--> kg.status
+Data from: montebea.csv
+Columns
+x_col = easting
+y_col = northing
+z_col = heigth
+Window:
+xmin = 0
+xmax = 1000
+ymin = 0
+ymax = 1400
+Grid:
+bins = 500
+hist = 700
+--> 
+```
+Best model is #20, let us choose and verify it
+
+```bash
+--> kg.model=20
+--> kg.status
+Data from: montebea.csv
+Columns
+x_col = easting
+y_col = northing
+z_col = heigth
+Window:
+xmin = 0
+xmax = 1000
+ymin = 0
+ymax = 1400
+Grid:
+bins = 500
+hist = 700
+Model = 20
+   zk = [ 9.25957322e-16 -1.24760438e+03  1.94534241e-02  0.00000000e+00
+ -9.32819591e+00] 
+--> 
+```
+
+Now we can proceed:
+
+```bash
+--> kg.estimate_grid(filename="montebea", preview=False)
+
+[GRID] Generating map with Model #20...
+Exporting 500x700 grid in parallel to montebea_1_14_mod_20.grd...
+Kriging: 100%|████████████████████████████████| 700/700 [00:12<00:00, 55.24it/s]
+Export completed. Now writing metadata to montebea_1_14_mod_20.hdr...
+Completed.
+Completed. Data saved to montebea_1_14_mod_20.grd
+-->
+```
+These are also parallelized calculations, and the results above are for the i7. For the Raspberry Pi:
+
+```bash
+Kriging: 100%|████████████████████████████████| 700/700 [00:46<00:00, 14.98it/s]
+```
+
+```bash
+$ ls *.grd *hdr
+montebea_1_14_mod_20.grd  montebea_1_14_mod_20.hdr
+```
+
+```bash
+$ cat montebea_1_14_mod_20.hdr 
+type: GRID
+file: montebea.csv
+x_col: easting
+y_col: northing
+z_col: heigth
+ntot: 87
+nork: 1
+nvec: 14
+model: 20
+zk: [ 9.25957322e-16 -1.24760438e+03  1.94534241e-02  0.00000000e+00
+ -9.32819591e+00]
+xmin: 0
+xmax: 1000
+ymin: 0
+ymax: 1400
+bins: 500
+hist: 700
+date: 2026-01-08 06:24:18.153823
+```
+
+Time to explore our results!
+
 ## `Gplot` use
 
+>`Gplot` is a collection of basic graphical tools for a first exploration of our results, which in no way intends to replace professional tools such as QGIS, Blender, or similar.
+
+A `Gplot` object is created by reading a pair of `.grd` and `.hdr` files; for example:
+
+```bash
+--> gp = Gplot("montebea_1_14_mod_20")      # do not add extension!
+montebea_1_14_mod_20 (500x700) grid successfully read.
+-->
+```
+
+### Contours
+
+```bash
+--> gp.contourc()
+```
+
+![mb_contourc](../_static/mb_contourc.png)
+
+
+```bash
+--> gp.contourd()
+```
+
+![mb_contourd](../_static/mb_contourd.png)
+
+
+
+### Surfaces
+
+```bash
+--> gp.zsurf()
+```
+
+![mb_zsurf](../_static/mb_zsurf.png)
+
+```bash
+--> gp.esurf()
+```
+
+![mb_esurf](../_static/mb_esurf.png)
+
+### GPU accelerated surface
+
+If you have a GPU and a WebGL-compatible browser, you can benefit from a more dynamic, photorealistic view of the surface. The following command should open a tab in your browser displaying the surface:
+
+```bash
+--> gp.zsurf_gpu()
+```
+
+![mb_zsurf_gpu](../_static/mb_zsurf_gpu.png)
+
+If you are using a Raspberry Pi and accessing it via VNC, you should use:
+
+```bash
+--> gp.zsurf_gpu_PI()
+```
+instead since it is optimized for such a situation.
+
+You can also save the surface es a `html` file:
+
+```bash
+--> gp.save_zsurf()
+3D model successfully exported to: msh_3d_model.html
+-->
+```
 
 ## CLI utilities
 
 ### `pygeko`
+
+![logo_pygeko](../_static/logo_pygeko_text.png)
+
+
+
+```bash
+$ pygeko -h
+pyGEKO-Kriger 0.9.0 - Command Line Interface
+
+Usage:
+  pygeko                 Launch interactive REPL
+  pygeko <script.py>     Execute a script
+  pygeko -i <script.py>  Execute a script and stay in interactive mode
+  pygeko -m <module>     Run a library module (e.g., pygeko.examples.msh_tune)
+  pygeko --help          Show this message
+```
 
 ### `lsgck`
 

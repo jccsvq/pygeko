@@ -11,6 +11,9 @@ pyGEKO: Fast Generalized Covariance Kriging
    :target: https://github.com/jccsvq/pygeko/blob/main/LICENSE
    :alt: License
 
+.. important::
+   This is an incomplete first draft of the documentation in the pre-release phase.
+
 **Spatial interpolation made fast, automatic, and hardware-efficient.**
 
 **pyGEKO** is a high-performance Python library for **Generalized Covariance Kriging (GCK)**. Unlike traditional Ordinary Kriging, pyGEKO eliminates the tedious process of manual variogram fitting. It automatically recognizes the underlying spatial structure using a powerful library of generalized covariance models.
