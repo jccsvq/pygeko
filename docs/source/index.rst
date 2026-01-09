@@ -30,7 +30,7 @@ Designed for efficiency, pyGEKO runs seamlessly on high-end x86 workstations and
 * **🎨 GPU Visualization:** Generates interactive 3D surfaces using Plotly (WebGL), optimized for smooth rendering even over VNC remote connections.
 
 .. figure:: /_static/msh-rpi.jpg
-   :target: /_static/msh-rpi.jpg
+   :target: https://jccsvq.github.io/pygeko/assets/msh-rpi.jpg
    :align: center
    :alt: Mount St. Helens 1000x1000 grid as viewed in a Raspberry PI 5 acceded vis VNC
 

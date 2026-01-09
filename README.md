@@ -30,11 +30,8 @@
 * **Smart Metadata:** Saves model parameters (, , ) directly within the project files.
 * **CLI Utilities:** Include `pygeko`, a python REPL with pre-imported modules for interactive analysis. Also include `lsgck`, a command-line tool to inspect your experiment results instantly.
 
-<a href=assets/msh-rpi.jpg target="_blank">
-<figure>
-  <img src=assets/msh-rpi-small.jpg alt="">
-  <figcaption>Mount St. Helens 1000x1000 grid (from 5000 points) as viewed in a Raspberry PI 5 acceded vis VNC</figcaption>
-</figure></a>
+![Mount St. Helens 1000x1000 grid (from 5000 points) as viewed in a Raspberry PI 5 acceded vis VNC](/assets/msh-rpi.jpg)
+
 
 ## 📊 Performance Benchmark
 

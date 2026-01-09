@@ -784,7 +784,9 @@ Creating a `Kgrid` object requires the following input parameters:
   - `bins`, number of X values to use.
   - `hist`, number of Y values to use.
 
-Let's start a new `pygekoo` session in the working directory where we analyzed the `montebea.csv` dataset and recreate the analyzed `Kdata` object using the `montebea_1_14.gck` file:
+### Basic workflow
+
+Let's start a new `pygeko` session in the working directory where we analyzed the `montebea.csv` dataset and recreate the analyzed `Kdata` object using the `montebea_1_14.gck` file:
 
 ```bash
 $ pygeko
@@ -966,6 +968,53 @@ hist: 700
 date: 2026-01-08 06:24:18.153823
 ```
 
+### Hard test
+
+Let's go to the directory where we analyzed the data from Mount St. Helens, where the `msh5000*.gck` files reside, and open a new `pygeko` session. Copy and paste the following commands into that session:
+
+```python
+kd = Kdata(msh5000)
+kd.Z /= 60.0
+kd.restore("msh5000_1_20")
+kg = Kgrid(kd, 0, 1024, 0, 1024, 1000, 1000)
+kg.model = 13
+kg.estimate_grid(filename="MtStHelens5000", preview=False)
+```
+
+You will see the following output:
+
+```bash
+--> kd = Kdata(msh5000)
+Column names default to "X", "Y" and "Z"
+nvec dafaults to: 12 and nork to: 1
+Please, adapt these parameter to your problem!
+
+--> kd.Z /= 60.0
+--> kd.restore("msh5000_1_20")
+
+[RESTORE] Configuration recovered:
+          Model: 13 | nork: 1 | nvec: 20
+          Original validation: MAE=5.625207187853923
+          KDTree regenerated for 5000 points.
+--> kg = Kgrid(kd, 0, 1024, 0, 1024, 1000, 1000)
+--> kg.model = 13
+--> kg.estimate_grid(filename="MtStHelens5000", preview=False)
+
+[GRID] Generating map with Model #13...
+Exporting 1000x1000 grid in parallel to MtStHelens5000_1_20_mod_13.grd...
+Kriging: 100%|██████████████████████████████| 1000/1000 [00:40<00:00, 24.89it/s]
+Export completed. Now writing metadata to MtStHelens5000_1_20_mod_13.hdr...
+Completed.
+Completed. Data saved to MtStHelens5000_1_20_mod_13.grd
+-->
+```
+According to the progress bar, estimating a 1000 x 1000 grid with 5000 points took 40 seconds on an 8-core i7 at 3.6 GHz. For the Raspberry Pi:
+
+```bash
+Kriging: 100%|██████████████████████████████| 1000/1000 [02:35<00:00,  6.45it/s]
+```
+it took 155 seconds.
+
 Time to explore our results!
 
 ## `Gplot` use
@@ -979,8 +1028,23 @@ A `Gplot` object is created by reading a pair of `.grd` and `.hdr` files; for ex
 montebea_1_14_mod_20 (500x700) grid successfully read.
 -->
 ```
+or for our hard test:
+
+```bash
+--> gp = Gplot("MtStHelens5000_1_20_mod_13")      # do not add extension!
+MtStHelens5000_1_20_mod_13 (1000x1000) grid successfully read.
+-->
+```
+
 
 ### Contours
+
+There are two methods for contour mapping:
+
+* `contourc`: uses a continuous color map
+* `contourd`: uses a discrete color map
+
+Let's start with `montebea`
 
 ```bash
 --> gp.contourc()
@@ -995,9 +1059,22 @@ montebea_1_14_mod_20 (500x700) grid successfully read.
 
 ![mb_contourd](../_static/mb_contourd.png)
 
+with `MtStHelens5000`
 
+```bash
+--> gp.contourc()
+```
+![msh_contourc](../_static/msh_contourc.png)
+
+```bash
+--> gp.contourd()
+```
+
+![msh_contourd](../_static/msh_contourd.png)
 
 ### Surfaces
+
+`montebea` case:
 
 ```bash
 --> gp.zsurf()
