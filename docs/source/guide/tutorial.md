@@ -1112,6 +1112,8 @@ You can also save the surface es a `html` file:
 3D model successfully exported to: msh_3d_model.html
 -->
 ```
+[Click here to open a 500x500 grid interactive 3D model (13 MB WebGL)](https://jccsvq.github.io/pygeko/docs/web_models/msh_3d_500.html)
+
 
 ## CLI utilities
 
@@ -1119,7 +1121,7 @@ You can also save the surface es a `html` file:
 
 ![logo_pygeko](../_static/logo_pygeko_text.png)
 
-
+The `pygeko` command is a souped-up Python interpreter designed to make working with this package easier. It is especially recommended if, for example, you install the package using `pipx`. It attempts to replicate some of the most useful aspects of the Python interpreter's behavior, but with the `Kdata`, `Kgrid`, and `Gplot` classes pre-imported, as well as some other defined symbols.
 
 ```bash
 $ pygeko -h
@@ -1135,6 +1137,7 @@ Usage:
 
 ### `lsgck`
 
+List of information extracted from the `.gck` files present in a directory.
 
 ```bash
 $ lsgck -h
@@ -1149,6 +1152,8 @@ options:
 ```
 
 ### `png2csv`
+
+Read a 16-bit PNG DEM, extract N random points and export to CSV. Its purpose is to create sample data for this package.
 
 ```bash
 $ png2csv -h

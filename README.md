@@ -32,6 +32,7 @@
 
 ![Mount St. Helens 1000x1000 grid (from 5000 points) as viewed in a Raspberry PI 5 acceded vis VNC](/assets/msh-rpi.jpg)
 
+[Click here to open the interactive 3D model (13 MB WebGL)](https://jccsvq.github.io/pygeko/docs/web_models/msh_3d_500.html)
 
 ## 📊 Performance Benchmark
 
