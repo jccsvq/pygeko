@@ -1155,8 +1155,11 @@ options:
 
 This utility allows you to read a 16-bit PNG heightmap, extract $N$ random points, and export them to a CSV file. It was originally designed to generate the package's test datasets from a Mount St. Helens DEM. Due to copyright restrictions on the original volcanic data, we provide an alternative: the Lincoln Island DEM. This is a fictional model of the island from Jules Verne’s *The Mysterious Island*, created by the author as a heightmap for Blender. It serves as a perfect playground for testing interpolation and grid estimation. Download Sample PNG: [Lincoln_Island_DEM.png](https://github.com/jccsvq/pygeko/releases/download/v0.9.0rc1/lincoln_island_dem_16bit.png)
 
-><a target="_blank" rel="noopener noreferrer" title="Jccsvq, CC0, via Wikimedia Commons" href="https://commons.wikimedia.org/wiki/File:Im-disp02.jpg"><img width="256" alt="Simulation of Lincoln Island (from Jules Verne&#039;s The Mysterious Island) rendered by Blender." src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Im-disp02.jpg/256px-Im-disp02.jpg?20260113042724"></a>
-><br>The *Lincoln Island* as rendered by Blender
+
+><a title="Jules Verne, Public domain, via Wikimedia Commons" href="https://commons.wikimedia.org/wiki/File:Ile_Mysterieuse_03.jpg"><img width="128" alt="Ile Mysterieuse 03" src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Ile_Mysterieuse_03.jpg/128px-Ile_Mysterieuse_03.jpg?20170810135714"></a>
+><img src="https://github.com/jccsvq/pygeko/releases/download/v0.9.0rc1/lincoln_island_dem_16bit.png" width="200">
+><a target="_blank" rel="noopener noreferrer" title="Jccsvq, CC0, via Wikimedia Commons" href="https://commons.wikimedia.org/wiki/File:Im-disp02.jpg"><img width="350" alt="Simulation of Lincoln Island (from Jules Verne&#039;s The Mysterious Island) rendered by Blender." src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Im-disp02.jpg/256px-Im-disp02.jpg?20260113042724"></a>
+><br>The <i>Lincoln Island</i>: the map, the DEM and a rendering of it by Blender
 
 ```bash
 $ png2csv -h
