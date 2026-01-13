@@ -1,6 +1,6 @@
 """pyGEKO Kdata.restore basic test
 
-First, you need to run `test_save_kdata.py`
+First, you need to run `msh_save_kdata.py`
 """
 
 from pygeko import Kdata, Kgrid
@@ -10,18 +10,21 @@ from pygeko import Gplot
 def main():
     """Entry point"""
     # Load and analyze data
-    montebea = get_data_path("montebea.csv")  # get path to montebea.csv
-    kd = Kdata(montebea)                      # read data from csv file
+    msh5000 = get_data_path("msh5000.csv")  # get path to msh5000.csv
+    kd = Kdata(msh5000)                      # read data from csv file
+    # The next line ensures that Z is within the same order of magnitude as X and Y. 
+    # This improves the conditioning of the Kriging matrix, which is vital on 
+    # limited hardware like the RPi 5.
+    kd.Z /= 60.0  # Normalized for numerical stability
 
-
-    kd.restore("montebea_1_14")               # restore state from saved `.gck` file
+    kd.restore("msh5000_1_20")               # restore state from saved `.gck` file
     kd.status                                 # verify...
 
-    kg = Kgrid(kd, 0.0, 1000.0, 0.0, 1400.0, 500, 700)   # define estimation window and grid resolution
-    kg.model = 20   # for batch or script use
-    kg.estimate_grid(filename="montebea", preview=False) # let's go...
+    kg = Kgrid(kd, 0.0, 1024.0, 0.0, 1024.0, 1000, 1000)   # define estimation window and grid resolution
+    kg.model = 13   # for batch or script use
+    kg.estimate_grid(filename="msh5000", preview=False) # let's go...
 
-    gp=Gplot("montebea_1_14_mod_20")          # create Gplot object
+    gp=Gplot("msh5000_1_20_mod_13")          # create Gplot object
     gp.contourd()                             # Plot contours map with discrete colormap
 
 if __name__ == "__main__":

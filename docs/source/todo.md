@@ -2,9 +2,9 @@
 
 ## Immediate
 
-*  [ ] **Complete docs**.
-*  [ ] Install documentation in ReadTheDocs.
-*  [ ] **Package** for pypi.org
+*  [X] **Complete docs**.
+*  [X] Install documentation in ReadTheDocs.
+*  [X] **Package** for pypi.org
 
 ## Prior to version 1.0.0
 

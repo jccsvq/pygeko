@@ -2,6 +2,9 @@
 
 ## 💻 Basic Workflow
 
+:::{seealso}
+The [Demo files section of Tutorial](demo-files).
+:::
 
 ```bash
 $ pygeko    # Invoque pygeko REPL
@@ -25,31 +28,30 @@ Please, adapt these parameter to your problem!
 
 --> kd.analyze()
 
-Generating GIK's for 87 data points...
+Executing isolated analysis (NORK=1, NVEC=12)...
 Mod  | MAE        | RMSE       | Corr     | Status
 --------------------------------------------------
 0    | 131.0157   | 170.1328   | 0.7599   | OK
 1    | 123.0204   | 169.7489   | 0.7600   | OK
 2    | 140.0318   | 199.4235   | 0.7002   | OK
-3    | 140.0318   | 199.4235   | 0.7002   | OK
-4    | 312.3967   | 609.6041   | 0.2972   | OK
-5    | 130.0814   | 183.6116   | 0.7321   | OK
-6    | 123.0204   | 169.7489   | 0.7600   | OK
-7    | 140.0318   | 199.4235   | 0.7002   | OK
-8    | 312.3967   | 609.6041   | 0.2972   | OK
-9    | 130.0814   | 183.6116   | 0.7321   | OK
+3    | 312.3967   | 609.6041   | 0.2972   | OK
+4    | 130.0814   | 183.6116   | 0.7321   | OK
+5    | 123.0204   | 169.7489   | 0.7600   | OK
+6    | 140.0318   | 199.4235   | 0.7002   | OK
+7    | 312.3967   | 609.6041   | 0.2972   | OK
+8    | 130.0814   | 183.6116   | 0.7321   | OK
+9    | 123.0204   | 169.7489   | 0.7600   | OK
 10   | 123.0204   | 169.7489   | 0.7600   | OK
-11   | 123.0204   | 169.7489   | 0.7600   | OK
-12   | 123.0038   | 169.7019   | 0.7601   | OK
-13   | 140.0314   | 199.4229   | 0.7002   | OK
-14   | 130.0617   | 183.5821   | 0.7322   | OK
+11   | 123.0038   | 169.7019   | 0.7601   | OK
+12   | 140.0314   | 199.4229   | 0.7002   | OK
+13   | 130.0617   | 183.5821   | 0.7322   | OK
+14   | 123.0204   | 169.7489   | 0.7600   | OK
 15   | 123.0204   | 169.7489   | 0.7600   | OK
-16   | 123.0204   | 169.7489   | 0.7600   | OK
-17   | 123.0038   | 169.7019   | 0.7601   | OK
-18   | 123.0196   | 169.7471   | 0.7600   | OK
-19   | 122.9569   | 169.5708   | 0.7604   | OK
-20   | 123.0196   | 169.7471   | 0.7600   | OK
-21   | 122.9569   | 169.5708   | 0.7604   | OK
+16   | 123.0038   | 169.7019   | 0.7601   | OK
+17   | 123.0196   | 169.7471   | 0.7600   | OK
+18   | 122.9569   | 169.5708   | 0.7604   | OK
+19   | 123.0196   | 169.7471   | 0.7600   | OK
+20   | 122.9569   | 169.5708   | 0.7604   | OK
 
 Validating best model...
 Starting Cross-Validation in 87 points...
@@ -60,28 +62,23 @@ Mean Absolute Error (MAE): 122.9569
 Root Mean Square Error (RMSE): 169.5708
 Correlation Coefficient: 0.7604
 
+[OK] Saved: montebea_1_12.gck
+     MAE: 122.95693486762474 | nork: 1 | nvec: 12
+
 --> kg = Kgrid(kd, 0.0, 1000.0, 0.0, 1400.0, 1000, 1000)   # define estimation window and grid resolution (1000x1000)
---> kg.model = 21                                          # choose model
+--> kg.model = 20                                          # choose model
 --> kg.estimate_grid(filename="montebea", preview=False)   # let's go...
 
-[GRID] Generating map with Model #21...
-Exporting 1000x1000 grid in parallel to montebea_1_12_mod_21.grd...
-Progress: 0%
-Progress: 10%
-Progress: 20%
-Progress: 30%
-Progress: 40%
-Progress: 50%
-Progress: 60%
-Progress: 70%
-Progress: 80%
-Progress: 90%
-Export completed. Now writing metadata to montebea_1_12_mod_21.hdr...
+[GRID] Generating map with Model #20...
+Exporting 1000x1000 grid in parallel to montebea_1_12_mod_20.grd...
+Kriging: 100%|███████████████████████████████████████| 1000/1000 [00:34<00:00, 29.07it/s]
+Export completed. Now writing metadata to montebea_1_12_mod_20.hdr...
 Completed.
-Completed. Data saved to montebea_1_12_mod_21.grd
+Completed. Data saved to montebea_1_12_mod_20.grd
 
---> gp = Gplot("montebea_1_12_mod_21")
-montebea_1_12_mod_21 (1000x1000) grid successfully read
+
+--> gp = Gplot("montebea_1_12_mod_20")
+montebea_1_12_mod_20 (1000x1000) grid successfully read
 
 --> gp.contourd()
 
@@ -91,15 +88,26 @@ montebea_1_12_mod_21 (1000x1000) grid successfully read
 ## 💻 Heatmap, Automation
 Instead of using `kd.analyze()` above, you can start an automatic model analysis
 
-```python
-config_report = kd.tune(nvec_list=range(8, 17, 2), nork_list=[0, 1, 2])
-```
+```bash
+--> config_report = kd.tune(nvec_list=range(8, 17, 2), nork_list=[0, 1, 2])
 
-And after a long and boring list of results, it obtains a series of `.gck` files, one for each pair of `nork` and `nvec` values, which it can visualize as a heatmap:
+Starting isolated scan of 15 combinations...
+[TUNING SCAN]: 100%|█████████████████████████████████████| 15/15 [00:01<00:00, 11.06it/s]
 
-```python
 
-kd.plot_tuning_results(config_report)
+========================================
+ TUNING RESULT
+========================================
+Best setting: nork=1, nvec=14
+Minimum MAE: 121.3317 (Model #20)
+========================================
+
+[RESTORE] Configuration recovered:
+          Model: 20 | nork: 1 | nvec: 14
+          Original validation: MAE=121.33169956379052
+          KDTree regenerated for 87 points.
+
+--> kd.plot_tuning_results(config_report)
 ```
 ![gck_heatmap](../_static/gck_tuning_plot.png)
 

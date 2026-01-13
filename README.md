@@ -10,14 +10,13 @@
 
 > [!IMPORTANT]
 > **Project Status:** pyGEKO is currently in active development (Beta). 
-> - 🛠️ **Installation:** The package is not yet available on PyPI. For now, please install from source using Hatch.
-> - 📖 **Documentation:** Manuals are being compiled. The full documentation site will be live soon.
+> - 📖 **Documentation:** Manuals are being compiled.
 > - 🚀 **First Release:** Expected late January 2026.
 > - ⚠️ At this stage the code may still contain unused, undocumented or experimental methods or functions, as well as traces of comments in Spanish.
 
 > **Full Documentation:** [pygeko.readthedocs.io](https://pygeko.readthedocs.io)
 
-<img src="assets/pyGEKO_logo.png" alt="pyGEKO Logo" width="100" height="100"></img>
+<img src="https://raw.githubusercontent.com/jccsvq/pygeko/main/assets/pyGEKO_logo.png" alt="pyGEKO Logo" width="100" height="100"></img>
 
 **pyGEKO** is a high-performance Python library designed for geostatistical interpolation and surface modeling. It is engineered for efficiency, making it ideal for both heavy-duty x86 workstations and low-power ARM devices like the **Raspberry Pi 5**. It honors the mining heritage of Kriging by treating sparse data points as valuable gems 💎 to be accurately modeled into continuous surfaces.
 
@@ -30,7 +29,7 @@
 * **Smart Metadata:** Saves model parameters (, , ) directly within the project files.
 * **CLI Utilities:** Include `pygeko`, a python REPL with pre-imported modules for interactive analysis. Also include `lsgck`, a command-line tool to inspect your experiment results instantly.
 
-![Mount St. Helens 1000x1000 grid (from 5000 points) as viewed in a Raspberry PI 5 acceded vis VNC](/assets/msh-rpi.jpg)
+![Mount St. Helens 1000x1000 grid (from 5000 points) as viewed in a Raspberry PI 5 acceded vis VNC](https://raw.githubusercontent.com/jccsvq/pygeko/main/assets/msh-rpi.jpg)
 
 [Click here to open the interactive 3D model (13 MB WebGL)](https://jccsvq.github.io/pygeko/docs/web_models/msh_3d_500.html)
 
@@ -146,7 +145,7 @@ montebea_1_12_mod_21 (1000x1000) grid successfully read
 --> gp.contourd()
 
 ```
-![montebea_1_12_mod_21](assets/montebea_1_12_mod_21_contourc.png)
+![montebea_1_12_mod_21](https://raw.githubusercontent.com/jccsvq/pygeko/main/assets/montebea_1_12_mod_21_contourc.png)
 
 ## 💻 Heatmap
 Instead of using `kd.analyze()` above, you can start an automatic model analysis
@@ -161,7 +160,7 @@ And after a long and boring list of results, it obtains a series of `.gck` files
 
 kd.plot_tuning_results(config_report)
 ```
-![gck_heatmap](assets/gck_tuning_plot.png)
+![gck_heatmap](https://raw.githubusercontent.com/jccsvq/pygeko/main/assets/gck_tuning_plot.png)
 
 Which will quickly guide you to the best parameters to use for your interpolation (nork = 1, nvec = 14)
 
@@ -218,6 +217,7 @@ Use exit() or Ctrl-D (i.e. EOF) to exit.
 * `.gck`: Binary object containing the full Python state and metadata.
 * `.grd`: Standard grid file (CSV format) for GIS software.
 * `.hdr`: Human-readable header file with model performance metrics.
+* `.html`: WebGL HTML file with surface models.
 
 ## 📄 License
 

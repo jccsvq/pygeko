@@ -1137,7 +1137,7 @@ Usage:
 
 ### `lsgck`
 
-List of information extracted from the `.gck` files present in a directory.
+List information extracted from the `.gck` files present in a directory. More functionality is planned to be added in the future.
 
 ```bash
 $ lsgck -h
@@ -1151,9 +1151,12 @@ options:
                      ".")
 ```
 
-### `png2csv`
+### `png2csv` Utility
 
-Read a 16-bit PNG DEM, extract N random points and export to CSV. Its purpose is to create sample data for this package.
+This utility allows you to read a 16-bit PNG heightmap, extract $N$ random points, and export them to a CSV file. It was originally designed to generate the package's test datasets from a Mount St. Helens DEM. Due to copyright restrictions on the original volcanic data, we provide an alternative: the Lincoln Island DEM. This is a fictional model of the island from Jules Verne’s *The Mysterious Island*, created by the author as a heightmap for Blender. It serves as a perfect playground for testing interpolation and grid estimation. Download Sample PNG: [Lincoln_Island_DEM.png] (Link to GitHub Assets)
+
+><a target="_blank" rel="noopener noreferrer" title="Jccsvq, CC0, via Wikimedia Commons" href="https://commons.wikimedia.org/wiki/File:Im-disp02.jpg"><img width="256" alt="Simulation of Lincoln Island (from Jules Verne&#039;s The Mysterious Island) rendered by Blender." src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Im-disp02.jpg/256px-Im-disp02.jpg?20260113042724"></a>
+><br>Simulation of Lincoln Island rendered by Blender
 
 ```bash
 $ png2csv -h
@@ -1176,4 +1179,100 @@ options:
   --no-viz              Turn off the display of sample points.
   --invert-y            Invert the Y axis to match geographical orientation.
 ```
+
+(demo-files)=
+## Demo files
+
+Several test programs have been included to verify that everything is working on your system. They use the `montebea` (87 points) and `msh5000` (5000 points) datasets. You can run them from the command line using:
+
+* `montebea` dataset (fast tests)
+    - `pygeko -m pygeko.examples.mb_workflow`
+    - `pygeko -m pygeko.examples.mb_tune`
+    - `pygeko -m pygeko.examples.mb_save_kdata`
+    - `pygeko -m pygeko.examples.mb_restore_kdata`
+* `msh5000` dataset (take longer)
+    - `pygeko -m pygeko.examples.msh_workflow`
+    - `pygeko -m pygeko.examples.msh_tune`
+    - `pygeko -m pygeko.examples.msh_save_kdata`
+    - `pygeko -m pygeko.examples.msh_restore_kdata`
+
+
+>Use `montebea` dataset for a quick check and `msh5000` for benchmarking. 
+
+>The "restore" examples should be run after the respective "save" examples to ensure that the corresponding `.gck` files exist.
+
+### `mb_workflow`
+
+```{literalinclude} ../../../src/pygeko/examples/mb_workflow.py
+:language: python
+:linenos:
+:caption: mb_workflow.py
+```
+
+
+### `mb_tune`
+
+```{literalinclude} ../../../src/pygeko/examples/mb_tune.py
+:language: python
+:linenos:
+:caption: mb_tune.py
+```
+
+
+### `mb_save_kdata`
+
+```{literalinclude} ../../../src/pygeko/examples/mb_save_kdata.py
+:language: python
+:linenos:
+:caption: mb_save_kdata.py
+```
+
+
+### `mb_restore_kdata`
+
+```{literalinclude} ../../../src/pygeko/examples/mb_restore_kdata.py
+:language: python
+:linenos:
+:caption: mb_restore_kdata.py
+```
+
+
+### `msh_workflow`
+
+```{literalinclude} ../../../src/pygeko/examples/msh_workflow.py
+:language: python
+:linenos:
+:caption: msh_workflow.py
+```
+
+
+### `msh_tune`
+
+```{literalinclude} ../../../src/pygeko/examples/msh_tune.py
+:language: python
+:linenos:
+:caption: msh_tune.py
+```
+
+
+### `msh_save_kdata`
+
+```{literalinclude} ../../../src/pygeko/examples/msh_save_kdata.py
+:language: python
+:linenos:
+:caption: msh_save_kdata.py
+```
+
+
+### `msh_restore_kdata`
+
+```{literalinclude} ../../../src/pygeko/examples/msh_restore_kdata.py
+:language: python
+:linenos:
+:caption: msh_restore_kdata.py
+```
+
+
+You can also view the code for these examples in the [GitHub repository](https://github.com/jccsvq/pygeko/tree/main/src/pygeko/examples).
+
 

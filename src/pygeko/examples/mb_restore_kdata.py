@@ -1,6 +1,6 @@
 """pyGEKO Kdata.restore basic test
 
-First, you need to run `test_save_kdata.py`
+First, you need to run `mb_save_kdata.py`
 """
 
 from pygeko import Kdata, Kgrid

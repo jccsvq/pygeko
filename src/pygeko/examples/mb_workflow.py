@@ -4,6 +4,7 @@ import time
 import gc
 from pygeko.kdata import Kdata
 from pygeko.kgrid import Kgrid
+from pygeko import Gplot
 from pygeko.utils import get_data_path
 
 def main():
@@ -36,6 +37,10 @@ def main():
 
     # Garbage collection
     gc.collect()
+
+    # Let us see the result
+    gp=Gplot("montebea_1_14_mod_20")          # create Gplot object
+    gp.contourd()                             # Plot contours map with discrete colormap
 
 if __name__ == '__main__':
 

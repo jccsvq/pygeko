@@ -6,7 +6,7 @@ This page covers how to get **pyGEKO** up and running on your system, whether yo
 Prerequisites
 -------------
 
-* **Python:** 3.9 or higher (3.11+ recommended for performance).
+* **Python:** 3.11 or higher.
 * **Pip:** Latest version recommended.
 * **Architecture:** Supports x86_64 and ARM64 (specifically optimized for Raspberry Pi 5).
 
@@ -19,11 +19,18 @@ The easiest way to install pyGEKO is via PyPI:
 
    pip install pygeko
 
+or
+
+.. code-block:: bash
+
+   pipx install pygeko
+
+
 This will automatically install all core dependencies, including:
 * ``numpy`` and ``scipy`` for mathematical operations.
 * ``pandas`` for data handling.
 * ``plotly`` and ``matplotlib`` for visualization.
-* ``scikit-learn`` for KD-Tree spatial indexing.
+* ``scipy`` for KD-Tree spatial indexing.
 
 Developer Installation (using Hatch)
 ------------------------------------
@@ -71,6 +78,7 @@ For Raspberry Pi users, we recommend the following additional steps to ensure op
 
       sudo apt update && sudo apt upgrade
       sudo apt install libopenblas-dev libatlas-base-dev gfortran -y
+      sudo apt install python3-numpy python3-scipy
 
 2. **Cooling:**
    Kriging is a CPU-intensive task. Using the **Official Raspberry Pi 5 Active Cooler** is highly recommended to prevent thermal throttling during large matrix operations.

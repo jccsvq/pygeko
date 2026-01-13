@@ -12,7 +12,7 @@ pyGEKO: Fast Generalized Covariance Kriging
    :alt: License
 
 .. important::
-   This is an incomplete first draft of the documentation in the pre-release phase.
+   This is a first draft of the documentation in the pre-release phase.
 
 **Spatial interpolation made fast, automatic, and hardware-efficient.**
 
@@ -81,7 +81,13 @@ Install pyGEKO directly from PyPI:
 
 .. code-block:: bash
 
-   pip install pyGEKO
+   pip install pygeko
+
+or
+
+.. code-block:: bash
+
+   pipx install pygeko
 
 📂 Output Formats
 -----------------
@@ -89,6 +95,7 @@ Install pyGEKO directly from PyPI:
 * ``.gck``: Binary object containing the full Python state and metadata.
 * ``.grd``: Standard grid file (CSV format) for GIS software.
 * ``.hdr``: Human-readable header file with model performance metrics.
+* ``.html``: WebGL HTML with surface models.
 
 📖 Documentation Contents
 --------------------------

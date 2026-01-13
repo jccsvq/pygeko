@@ -12,6 +12,7 @@ import time
 
 from pygeko.kdata import Kdata
 from pygeko.kgrid import Kgrid
+from pygeko import Gplot
 from pygeko.utils import get_data_path
 
 
@@ -23,6 +24,9 @@ def main():
     # Scaling is recommended when Z range is significantly different from X,Y
     msh_path = get_data_path("msh5000.csv")
     kd = Kdata(msh_path)
+    # The next line ensures that Z is within the same order of magnitude as X and Y. 
+    # This improves the conditioning of the Kriging matrix, which is vital on 
+    # limited hardware like the RPi 5.
     kd.Z /= 60.0  # Normalized for numerical stability
 
     # 2. Configure Kriging Parameters
@@ -58,6 +62,9 @@ def main():
 
     gc.collect()
 
+    # Let us see the result
+    gp = Gplot("MtStHelens5000_1_20_mod_13")
+    gp.contourd()
 
 if __name__ == "__main__":
     main()
