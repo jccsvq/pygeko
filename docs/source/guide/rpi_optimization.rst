@@ -3,6 +3,17 @@ Raspberry Pi 5 Optimization
 
 pyGEKO is uniquely designed to handle spatial interpolation on edge devices. However, ARM architectures require specific considerations to maintain stability and performance.
 
+.. figure:: ../_static/ILincoln_rpi5.png
+   :align: center
+   :width: 600
+   :target: ../_static/ILincoln_rpi5.png
+   :alt: Interactive 3D model vs. Blender render on Raspberry Pi 5 desktop.
+   
+   **Interactive 3D model vs. Blender render on Raspberry Pi 5 desktop.**
+
+
+
+
 Thread Control
 --------------
 

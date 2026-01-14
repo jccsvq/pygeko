@@ -50,6 +50,8 @@ class Gplot:
         :param fnamebase: `grd` and `hdr` filename base
         :type fnamebase: str
         """
+        self.title = os.path.basename(fnamebase)
+
         # Load grid data
         self.grid_df = pd.read_csv(fnamebase + ".grd")
 
@@ -145,20 +147,51 @@ class Gplot:
         plt.close("all")
         gc.collect()
 
-    def contourd(self):
+    def contourd(
+        self,
+        v_min: float = None,
+        v_max: float = None,
+        nlevels: int = 25,
+    ):
+        """
+        Plot an interactive map of estimated Z and its errors with a discrete color map
+
+        :param v_min: minimum Z value to map, defaults to None
+        :type v_min: float, optional
+        :param v_max: maximum Z value to map, defaults to None
+        :type v_max: float, optional
+        """
         """
         Plot an interactive map of estimated Z and its errors with a discrete color map
         """
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 7), sharex=True, sharey=True)
 
+        if v_min is None:
+            v_min = self.Z.min()
+        if v_max is None:
+            v_max = self.Z.max()
+
+        # Draw Z Estimate
         # Panel 1: Z estimated
-        c1 = ax1.contourf(self.X, self.Y, self.Z, levels=25, cmap="terrain")
+        # Generate exactly 25 slices between v_min and v_max
+        levels_cuts = np.linspace(v_min, v_max, nlevels)
+
+        c1 = ax1.contourf(
+            self.X,
+            self.Y,
+            self.Z,
+            levels=levels_cuts,
+            cmap="terrain",
+            vmin=v_min,
+            vmax=v_max,
+            # extend="both"
+        )
         fig.colorbar(c1, ax=ax1, label="Estimated Z")
         ax1.set_title("Estimated Z")
         ax1.set_aspect("equal")
 
         # Panel 2: Error (Sigma)
-        c2 = ax2.contourf(self.X, self.Y, self.E, levels=25, cmap="magma")
+        c2 = ax2.contourf(self.X, self.Y, self.E, levels=nlevels, cmap="magma")
         fig.colorbar(c2, ax=ax2, label="Error")
         ax2.set_title("Error")
         ax2.set_aspect("equal")
@@ -283,33 +316,74 @@ class Gplot:
         plt.close("all")
         gc.collect()
 
-    def zsurf_gpu(self):
+    def zsurf_gpu(
+        self,
+        z_floor: float = None,
+        v_exag: float = 0.5,
+        cmap: str = "earth",
+    ):
         """
         Smooth rendering using WebGL and your NVIDIA GPU
-        """
 
+        :param z_floor: plot only above this value, defaults to None
+        :type z_floor: float, optional
+        :param v_exag: vertical exageration factor, defaults to 0.5
+        :type v_exag: float, optional
+        :cmap: plotly color map name, defaults to "earth"
+        :type cmap: str, optional
+        """
+        # Optional: To make the surface "die" at the ground instead of sinking
+        # Z_plot = self.Z.copy()
+        # Z_plot[Z_plot < z_floor] = np.nan # NaNs in Plotly create gaps or clean cuts
+        if z_floor is None:
+            z_floor = self.Z.min()
         fig = go.Figure(
-            data=[go.Surface(z=self.Z, x=self.X, y=self.Y, colorscale="earth")]
+            data=[go.Surface(z=self.Z, x=self.X, y=self.Y, colorscale=cmap)]
         )
 
         fig.update_layout(
             title="Estimated Z 3D (GPU Accelerated)",
             autosize=True,
-            width=900,
-            height=800,
-            scene=dict(zaxis=dict(range=[0, self.Z.max() * 1.2])),
+            scene=dict(
+                zaxis=dict(range=[z_floor, self.Z.max() * 1.2]),
+                aspectratio=dict(x=1, y=1, z=v_exag),
+            ),
         )
         fig.show()
         gc.collect()
 
-    def zsurf_gpu_PI(self):
+    def zsurf_gpu_PI(
+        self,
+        z_floor: float = None,
+        v_exag: float = 0.5,
+        cmap: str = "earth",
+    ):
         """
         Renders the 3D surface using WebGL and opens it in the system's browser.
         Optimized for remote VNC sessions and Raspberry Pi 5.
+
+        :param z_floor: plot only above this value, defaults to None
+        :type z_floor: float, optional
+        :param v_exag: vertical exageration factor, defaults to 0.5
+        :type v_exag: float, optional
+        :param cmap: plotly color map name, defaults to "earth"
+        :type cmap: str, optional
         """
+
+        if z_floor is None:
+            z_floor = self.Z.min()
         # 1. Generate the figure
         fig = go.Figure(
-            data=[go.Surface(z=self.Z, x=self.X, y=self.Y, colorscale="earth")]
+            data=[go.Surface(z=self.Z, x=self.X, y=self.Y, colorscale=cmap)]
+        )
+
+        fig.update_layout(
+            title="Estimated Z 3D (GPU Accelerated)",
+            autosize=True,
+            scene=dict(
+                zaxis=dict(range=[z_floor, self.Z.max() * 1.2]),
+                aspectratio=dict(x=1, y=1, z=v_exag),
+            ),
         )
 
         # 2. Define path in temporary directory
@@ -343,7 +417,6 @@ class Gplot:
         """
         Smooth rendering using WebGL and your NVIDIA GPU, old version
         """
-        import plotly.graph_objects as go
 
         fig = go.Figure(
             data=[
@@ -375,13 +448,29 @@ class Gplot:
         )
         fig.show()
 
-    def save_zsurf(self, filename="msh_3d_model"):
+    def save_zsurf(
+        self,
+        filename: str = None,
+        z_floor: float = None,
+        v_exag: float = 0.5,
+        cmap: str = "earth",
+    ):
         """Export the interactive 3D model to a separate HTML file.
 
-        :param filename: filename base, defaults to "msh_3d_model"
+        :param filename: filename, defaults to self.title + "_3d_model"
         :type filename: str, optional
+        :param z_floor: plot only above this value, defaults to None
+        :type z_floor: float, optional
+        :param v_exag: vertical exageration factor, defaults to 0.5
+        :type v_exag: float, optional
+        :param cmap: plotly color map name, defaults to "earth"
+        :type cmap: str, optional
         """
-        import plotly.graph_objects as go
+
+        if filename is None:
+            filename = self.title + "_3d_model"
+        if z_floor is None:
+            z_floor = self.Z.min()
 
         # 1. Create the figure (same logic as zsurf_gpu)
         fig = go.Figure(
@@ -390,7 +479,7 @@ class Gplot:
                     z=self.Z,
                     x=self.X,
                     y=self.Y,
-                    colorscale="earth",
+                    colorscale=cmap,
                     lighting=dict(
                         ambient=0.4, diffuse=0.5, roughness=0.9, specular=0.1
                     ),
@@ -405,8 +494,8 @@ class Gplot:
                 xaxis_title="X",
                 yaxis_title="Y",
                 zaxis_title="Z",
-                aspectmode="manual",
-                aspectratio=dict(x=1, y=1, z=0.5),
+                zaxis=dict(range=[z_floor, self.Z.max() * 1.2]),
+                aspectratio=dict(x=1, y=1, z=v_exag),
             ),
             margin=dict(l=0, r=0, b=0, t=40),
         )

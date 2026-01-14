@@ -1123,6 +1123,9 @@ You can also save the surface es a `html` file:
 
 The `pygeko` command is a souped-up Python interpreter designed to make working with this package easier. It is especially recommended if, for example, you install the package using `pipx`. It attempts to replicate some of the most useful aspects of the Python interpreter's behavior, but with the `Kdata`, `Kgrid`, and `Gplot` classes pre-imported, as well as some other defined symbols.
 
+Programm usage:
+
+
 ```bash
 $ pygeko -h
 pyGEKO-Kriger 0.9.0 - Command Line Interface
@@ -1135,9 +1138,13 @@ Usage:
   pygeko --help          Show this message
 ```
 
-### `lsgck`
+### `lsgck` Utility
+
 
 List information extracted from the `.gck` files present in a directory. More functionality is planned to be added in the future.
+
+Programm usage:
+
 
 ```bash
 $ lsgck -h
@@ -1153,13 +1160,24 @@ options:
 
 ### `png2csv` Utility
 
-This utility allows you to read a 16-bit PNG heightmap, extract $N$ random points, and export them to a CSV file. It was originally designed to generate the package's test datasets from a Mount St. Helens DEM. Due to copyright restrictions on the original volcanic data, we provide an alternative: the Lincoln Island DEM. This is a fictional model of the island from Jules Verne’s *The Mysterious Island*, created by the author as a heightmap for Blender. It serves as a perfect playground for testing interpolation and grid estimation. Download Sample PNG: [Lincoln_Island_DEM.png](https://github.com/jccsvq/pygeko/releases/download/v0.9.0rc1/lincoln_island_dem_16bit.png)
+This utility allows you to read a 16-bit PNG heightmap, extract $N$ random points, and export them to a CSV file. It was originally designed to generate the package's test datasets from a Mount St. Helens DEM. Due to copyright restrictions on the original volcanic data, we provide an alternative: the Lincoln Island DEM. This is a fictional model of the island from Jules Verne’s *The Mysterious Island*, created by the author as a heightmap for Blender. It serves as a perfect playground for testing interpolation and grid estimation and has also been used during the development of this package. Download Sample PNG: [Lincoln_Island_DEM.png](https://github.com/jccsvq/pygeko/releases/download/v0.9.0rc1/lincoln_island_dem_16bit.png)
 
 
-><a title="Jules Verne, Public domain, via Wikimedia Commons" href="https://commons.wikimedia.org/wiki/File:Ile_Mysterieuse_03.jpg"><img width="128" alt="Ile Mysterieuse 03" src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Ile_Mysterieuse_03.jpg/128px-Ile_Mysterieuse_03.jpg?20170810135714"></a>
-><img src="https://github.com/jccsvq/pygeko/releases/download/v0.9.0rc1/lincoln_island_dem_16bit.png" width="200">
-><a target="_blank" rel="noopener noreferrer" title="Jccsvq, CC0, via Wikimedia Commons" href="https://commons.wikimedia.org/wiki/File:Im-disp02.jpg"><img width="350" alt="Simulation of Lincoln Island (from Jules Verne&#039;s The Mysterious Island) rendered by Blender." src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Im-disp02.jpg/256px-Im-disp02.jpg?20260113042724"></a>
-><br>The <i>Lincoln Island</i>: the map, the DEM and a rendering of it by Blender
+| Original Map (1874) | Digital Elevation Model | 3D Render (Blender) |
+| :---: | :---: | :---: |
+| <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Ile_Mysterieuse_03.jpg/256px-Ile_Mysterieuse_03.jpg" width="150"> | <img src="https://github.com/jccsvq/pygeko/releases/download/v0.9.0rc1/lincoln_island_dem_16bit.png" width="150"> | <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Im-disp02.jpg/256px-Im-disp02.jpg" width="150"> |
+
+*Lincoln Island: Verne's original map, the 16-bit DEM, and the Blender visualization.*
+
+<p align="center">
+  <a href="../_static/ILincoln_rpi5.png" target="_blank">
+    <img src="../_static/ILincoln_rpi5.png" width="600" alt="pyGEKO on RPi5">
+  </a>
+  <br>
+  <i>Interactive 3D model vs. Blender render on Raspberry Pi 5 desktop.</i>
+</p>
+
+Program usage:
 
 ```bash
 $ png2csv -h
