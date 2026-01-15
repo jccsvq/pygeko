@@ -107,29 +107,54 @@ class Gplot:
         e_val = self.E[iy, ix]
         return f"X={x:.2f}, Y={y:.2f} | Z={z_val:.2f}, Err={e_val:.2f}"
 
-    def contourc(self):
+    def contourc(
+        self,
+        v_min: float = None,
+        v_max: float = None,
+        bad: str = "red",
+    ):
         """
         Plot an interactive map of estimated Z and its errors with a continuous color map
+
+        :param v_min: minimum Z value to map, defaults to None
+        :type v_min: float, optional
+        :param v_max: maximum Z value to map, defaults to None
+        :type v_max: float, optional
+        :param bad: bad pixels color, defaults to "red"
+        :type bad: str, optional
         """
+        Z_plot = self.Z.copy()
+        #print(f"{v_min=}, {v_max=}, {np.nanmin(self.Z)=}, {np.nanmax(self.Z)=}, ")
+        if v_min is None:
+            v_min = np.nanmin(self.Z)
+        if v_max is None:
+            v_max = np.nanmax(self.Z)
+        # self.Z = np.clip(self.Z, v_min, v_max)
+        #print(f"{v_min=}, {v_max=}, {np.nanmin(self.Z)=}, {np.nanmax(self.Z)=}, ")
+        Z_plot[Z_plot < v_min] = np.nan
+
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 7), sharex=True, sharey=True)
 
         # 1. Configure color map for Z (Relief)
         cmap_z = cm.terrain.copy()
-        cmap_z.set_bad(color="red")  # Bad pixels in ROJO
+        cmap_z.set_bad(color=bad)  # Bad pixels in RED
 
         # 2. Configure color map for Error (Deep Sky)
         cmap_e = cm.inferno.copy()
-        cmap_e.set_bad(color="white")  # Bad pixels in BLANCO
+        cmap_e.set_bad(color="white")  # Bad pixels in WHITE
 
         # Draw Z Estimate
+        #print(v_min, v_max)
         im1 = ax1.imshow(
-            self.Z,
+            Z_plot,
             extent=[self.X.min(), self.X.max(), self.Y.min(), self.Y.max()],
             origin="lower",
             cmap=cmap_z,
             aspect="equal",
+            vmin=v_min,
+            vmax=v_max,
         )
-        ax1.set_title("Estimated Z)")
+        ax1.set_title("Estimated Z")
         fig.colorbar(im1, ax=ax1, label="Estimated Z")
 
         # Draw Standard Error
@@ -167,9 +192,9 @@ class Gplot:
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 7), sharex=True, sharey=True)
 
         if v_min is None:
-            v_min = self.Z.min()
+            v_min = np.nanmin(self.Z)
         if v_max is None:
-            v_max = self.Z.max()
+            v_max = np.nanmax(self.Z)
 
         # Draw Z Estimate
         # Panel 1: Z estimated
@@ -336,17 +361,18 @@ class Gplot:
         # Z_plot = self.Z.copy()
         # Z_plot[Z_plot < z_floor] = np.nan # NaNs in Plotly create gaps or clean cuts
         if z_floor is None:
-            z_floor = self.Z.min()
+            z_floor = np.nanmin(self.Z)
         fig = go.Figure(
             data=[go.Surface(z=self.Z, x=self.X, y=self.Y, colorscale=cmap)]
         )
-
+        range_x = self.X.max() - self.X.min()
+        range_y = self.Y.max() - self.Y.min()
         fig.update_layout(
             title="Estimated Z 3D (GPU Accelerated)",
             autosize=True,
             scene=dict(
-                zaxis=dict(range=[z_floor, self.Z.max() * 1.2]),
-                aspectratio=dict(x=1, y=1, z=v_exag),
+                zaxis=dict(range=[z_floor, np.nanmax(self.Z) * 1.2]),
+                aspectratio=dict(x=1, y=range_y/range_x, z=v_exag),
             ),
         )
         fig.show()
@@ -371,18 +397,20 @@ class Gplot:
         """
 
         if z_floor is None:
-            z_floor = self.Z.min()
+            z_floor = np.nanmin(self.Z)
         # 1. Generate the figure
         fig = go.Figure(
             data=[go.Surface(z=self.Z, x=self.X, y=self.Y, colorscale=cmap)]
         )
+        range_x = self.X.max() - self.X.min()
+        range_y = self.Y.max() - self.Y.min()
 
         fig.update_layout(
             title="Estimated Z 3D (GPU Accelerated)",
             autosize=True,
             scene=dict(
-                zaxis=dict(range=[z_floor, self.Z.max() * 1.2]),
-                aspectratio=dict(x=1, y=1, z=v_exag),
+                zaxis=dict(range=[z_floor, np.nanmax(self.Z) * 1.2]),
+                aspectratio=dict(x=1, y=range_y/range_x, z=v_exag),
             ),
         )
 
@@ -470,9 +498,13 @@ class Gplot:
         if filename is None:
             filename = self.title + "_3d_model"
         if z_floor is None:
-            z_floor = self.Z.min()
+            z_floor = np.nanmin(self.Z)
+
 
         # 1. Create the figure (same logic as zsurf_gpu)
+        range_x = self.X.max() - self.X.min()
+        range_y = self.Y.max() - self.Y.min()
+
         fig = go.Figure(
             data=[
                 go.Surface(
@@ -494,8 +526,8 @@ class Gplot:
                 xaxis_title="X",
                 yaxis_title="Y",
                 zaxis_title="Z",
-                zaxis=dict(range=[z_floor, self.Z.max() * 1.2]),
-                aspectratio=dict(x=1, y=1, z=v_exag),
+                zaxis=dict(range=[z_floor, np.nanmax(self.Z) * 1.2]),
+                aspectratio=dict(x=1, y=range_y/range_x, z=v_exag),
             ),
             margin=dict(l=0, r=0, b=0, t=40),
         )

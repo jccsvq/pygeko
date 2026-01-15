@@ -63,6 +63,32 @@ class Kdata:
         self._scale = None  # To be initialized by self.init_neig()
         self.crossvaldata = None
 
+    def clean_data(self, verbose: bool = True)-> int:
+        """
+        Removes rows containing NaN values in the active X, Y, and Z columns.
+        Should be called after setting x_col, y_col, and z_col if they differ 
+        from defaults.
+
+        :param verbose: print status messages, defaults to True
+        :type verbose: bool, optional
+        :return: dropped rows count
+        :rtype: _type_
+        """        
+        cols_to_check = [self.x_col, self.y_col, self.z_col]
+        initial_count = len(self.dframe)
+        
+        # Eliminamos filas con NaNs solo en las columnas de trabajo
+        self.dframe.dropna(subset=cols_to_check, inplace=True)
+        
+        dropped_count = initial_count - len(self.dframe)
+        
+        if verbose and dropped_count > 0:
+            print(f"🧹 Clean-up: {dropped_count} rows containing NaNs were removed.")
+        elif verbose:
+            print("✅ Data is clean. No NaNs found in active columns.")
+        
+        return dropped_count
+
     @property
     def nork(self):
         """
@@ -193,6 +219,9 @@ class Kdata:
         """
         Initialize the KDTree for efficient spatial searching and calculate scaling factors.
         """
+        # Let's make sure there are no NaNs
+        self.clean_data(verbose=False)  
+
         self.coordinates = np.array([self.x, self.y]).T
         self.kdtree = KDTree(self.coordinates)
 

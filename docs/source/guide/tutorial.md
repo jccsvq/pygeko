@@ -140,8 +140,14 @@ Our X, Y, and Z data are contained in the `easting`, `northing`, and `height` co
 --> kd.x_col = "easting"    # which column of the dataset to use as X
 --> kd.y_col = "northing"   # which column of the dataset to use as Y
 --> kd.z_col = "heigth"     # which column of the dataset to use as Z
---> 
+--> kd.clean_data()         # see note below
+✅ Data is clean. No NaNs found in active columns.
+0
+
 ```
+> **Note**: If you suspect your data may contain `NaN`'s, use this method **AFTER** you have defined your x, y, z columns!
+
+
 
 Let'us explore again:
 
@@ -574,7 +580,12 @@ Scale: None
 ```
 This time, we don't need to adjust the column names since the dataset contains exactly the names X, Y, and Z. However, as we can see above, column Z contains much larger values ​​than X and Y. For kriging stability, especially for the covariance matrices involved, it's best if the Z variable is within the same order of magnitude as the coordinates. We proceed to divide column Z by 60.
 
+>**Note:** Since the column names are already defined in this case, this would be the time to clean the data of `NaN`'s with `.clean_data()` if we suspect there may be any.
+
 ```bash
+--> kd.clean_data()  # NaN's cleaning
+✅ Data is clean. No NaNs found in active columns.
+0
 --> kd.Z /= 60.0  # Normalization for numerical stability!
 --> kd.status
 
