@@ -96,15 +96,11 @@ but the file has been installed with the distribution in some other location whi
 so we write:
 
 ```bash
---> kd = Kdata(montebea)
-Column names default to "X", "Y" and "Z"
-nvec dafaults to: 12 and nork to: 1
-Please, adapt these parameter to your problem!
-
---> 
+--> kd = Kdata(montebea)  # object creation
+--> kd                    # object inspection
+<pyGEKO.Kdata | source: 'montebea.csv' | points: 87 | mapping: [X, Y, Z] | nvec: 12, nork: 1>
+-->
 ```
-
-> Please note that we received an alert regarding default assumptions made by `Kdata`. We will return to this soon.
 
 Let's explore our object:
 
@@ -177,7 +173,7 @@ Scale: None
 --> 
 ```
 
-There were two other default values ​​mentioned in the alert: `nork` and `nvec`
+We have adapted `x_col`, `y_col` and `z_col` to our problem, but there are two other default values ​​mentioned above: `nork` and `nvec`
 
 * `nork` polynomial drift order
 * `nvec` number of neighbors to use
@@ -380,10 +376,7 @@ To see how this file may be used let's create a second object using `recover`
 
 ```bash
 --> kd2=Kdata("montebea.csv")
-Column names default to "X", "Y" and "Z"
-nvec dafaults to: 12 and nork to: 1
-Please, adapt these parameter to your problem!
->>> kd2.restore("montebea_1_12.gck")
+--> kd2.restore("montebea_1_12.gck")
 
 [RESTORE] Configuration recovered:
           Model: 20 | nork: 1 | nvec: 12
@@ -508,7 +501,7 @@ montebea_0_16.gck  montebea_1_14.gck  montebea_2_12.gck
 and:
 
 ```bash
-$ lsgck 
+$ lsgck -v
 Scanning directory: /home/jesus/Nextcloud/gck/pruebas
 
 =====================================================================================================
@@ -550,10 +543,6 @@ Classes Kdata, Kgrid and Gplot imported.
 Use exit() or Ctrl-D (i.e. EOF) to exit.
 
 --> kd = Kdata(msh5000)
-Column names default to "X", "Y" and "Z"
-nvec dafaults to: 12 and nork to: 1
-Please, adapt these parameter to your problem!
-
 --> kd.status
 
 Data properties:
@@ -724,7 +713,7 @@ msh5000_0_28.gck  msh5000_1_24.gck  msh5000_2_20.gck
 From another terminal:
 
 ```bash
-lsgck 
+lsgck -v
 Scanning directory: /home/jesus/Nextcloud/gck/pruebas/mshelen
 
 =====================================================================================================
@@ -810,10 +799,6 @@ Classes Kdata, Kgrid and Gplot imported.
 Use exit() or Ctrl-D (i.e. EOF) to exit.
 
 --> kd = Kdata(montebea)
-Column names default to "X", "Y" and "Z"
-nvec dafaults to: 12 and nork to: 1
-Please, adapt these parameter to your problem!
-
 --> kd.restore("montebea_1_14.gck")
 
 [RESTORE] Configuration recovered:
@@ -996,9 +981,6 @@ You will see the following output:
 
 ```bash
 --> kd = Kdata(msh5000)
-Column names default to "X", "Y" and "Z"
-nvec dafaults to: 12 and nork to: 1
-Please, adapt these parameter to your problem!
 
 --> kd.Z /= 60.0
 --> kd.restore("msh5000_1_20")
@@ -1036,14 +1018,16 @@ A `Gplot` object is created by reading a pair of `.grd` and `.hdr` files; for ex
 
 ```bash
 --> gp = Gplot("montebea_1_14_mod_20")      # do not add extension!
-montebea_1_14_mod_20 (500x700) grid successfully read.
+--> gp
+<pyGEKO.Gplot | Status: Ready | Grid Shape: (500, 700) | Source: 'montebea_1_14_mod_20'>
 -->
 ```
 or for our hard test:
 
 ```bash
 --> gp = Gplot("MtStHelens5000_1_20_mod_13")      # do not add extension!
-MtStHelens5000_1_20_mod_13 (1000x1000) grid successfully read.
+--> gp
+<pyGEKO.Gplot | Status: Ready | Grid Shape: (1000, 1000) | Source: 'MtStHelens5000_1_20_mod_13'>
 -->
 ```
 
@@ -1083,6 +1067,10 @@ with `MtStHelens5000`
 
 ![msh_contourd](../_static/msh_contourd.png)
 
+Please see the options for {meth}`.contourc <.contourc>` and  {meth}`.contourd <.contourd>`
+
+
+
 ### Surfaces
 
 `montebea` case:
@@ -1101,7 +1089,7 @@ with `MtStHelens5000`
 
 ### GPU accelerated surface
 
-If you have a GPU and a WebGL-compatible browser, you can benefit from a more dynamic, photorealistic view of the surface. The following command should open a tab in your browser displaying the surface:
+If you have a GPU and a WebGL-compatible browser, you can benefit from a more dynamic and photorealistic view of the surface. The following command should open a tab in your browser displaying the surface:
 
 ```bash
 --> gp.zsurf_gpu()
@@ -1109,12 +1097,17 @@ If you have a GPU and a WebGL-compatible browser, you can benefit from a more dy
 
 ![mb_zsurf_gpu](../_static/mb_zsurf_gpu.png)
 
+Please see the options for {meth}`.zsurf_gpu <.zsurf_gpu>`
+
+
 If you are using a Raspberry Pi and accessing it via VNC, you should use:
 
 ```bash
 --> gp.zsurf_gpu_PI()
 ```
 instead since it is optimized for such a situation.
+
+Please see the options for {meth}`.zsurf_gpu_PI <.zsurf_gpu_PI>`
 
 You can also save the surface es a `html` file:
 
@@ -1125,6 +1118,7 @@ You can also save the surface es a `html` file:
 ```
 [Click here to open a 500x500 grid interactive 3D model (13 MB WebGL)](https://jccsvq.github.io/pygeko/docs/web_models/msh_3d_500.html)
 
+Please see the options for {meth}`.save_zsurf <.save_zsurf>`
 
 ## CLI utilities
 
@@ -1134,7 +1128,7 @@ You can also save the surface es a `html` file:
 
 The `pygeko` command is a souped-up Python interpreter designed to make working with this package easier. It is especially recommended if, for example, you install the package using `pipx`. It attempts to replicate some of the most useful aspects of the Python interpreter's behavior, but with the `Kdata`, `Kgrid`, and `Gplot` classes pre-imported, as well as some other defined symbols.
 
-Programm usage:
+#### Programm usage:
 
 
 ```bash
@@ -1154,12 +1148,12 @@ Usage:
 
 List information extracted from the `.gck` files present in a directory. More functionality is planned to be added in the future.
 
-Programm usage:
+#### Programm usage:
 
 
 ```bash
 $ lsgck -h
-usage: lsgck [-h] [-d DIR]
+usage: lsgck [-h] [-d DIR] [-v]
 
 pyGEKO Utility: Scan directory for geospatial data.
 
@@ -1167,6 +1161,8 @@ options:
   -h, --help         show this help message and exit
   -d DIR, --dir DIR  Path to the directory to scan (default: current directory
                      ".")
+  -v, --verbose      print additional information
+
 ```
 
 ### `png2csv` Utility
@@ -1188,7 +1184,16 @@ This utility allows you to read a 16-bit PNG heightmap, extract $N$ random point
   <i>Interactive 3D model vs. Blender render on Raspberry Pi 5 desktop.</i>
 </p>
 
-Program usage:
+You can obtain real DEMs using [Tangrams Heightmapper](https://github.com/tangrams/heightmapper)
+
+>Make sure the image is 16-bit grayscale. If in doubt, use any transformation utility such as [`convert`](https://imagemagick.org/script/convert.php#gsc.tab=0) from [`ImageMagik`](https://imagemagick.org/#gsc.tab=0).
+
+```bash
+$ convert input.png -colorspace Gray -depth 16 output_gray16.png
+```
+
+
+#### Program usage:
 
 ```bash
 $ png2csv -h
@@ -1211,6 +1216,10 @@ options:
   --no-viz              Turn off the display of sample points.
   --invert-y            Invert the Y axis to match geographical orientation.
 ```
+
+
+
+
 
 (demo-files)=
 ## Demo files

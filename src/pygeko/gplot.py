@@ -70,8 +70,7 @@ class Gplot:
         # We use the column names defined in the exporter
         self.nx = int(self.meta.get("bins", 100))
         self.ny = int(self.meta.get("hist", 100))
-        print(f"{fnamebase} ({self.nx}x{self.ny}) grid successfully read.")
-
+        
         # Reshape de los datos (X, Y, Z, Sigma)
         self.X = self.grid_df["X"].values.reshape(self.ny, self.nx)
         self.Y = self.grid_df["Y"].values.reshape(self.ny, self.nx)
@@ -79,7 +78,7 @@ class Gplot:
         self.E = self.grid_df["SIGMA"].values.reshape(self.ny, self.nx)
 
     @property
-    def metadata(self) -> str:
+    def metadata(self):
         """
         Print grid metadata
         """
@@ -91,11 +90,9 @@ class Gplot:
         """
         Internal function to display Z values ​​when moving the cursor
 
-        :param x: X
+        :param x: X array
         :type x: np.array
-        :param y: Y
-        :type y: np.array
-        :return: Z
+        :param y: Y array
         :type y: np.array
         :return: formated string
         :rtype: str
@@ -124,13 +121,13 @@ class Gplot:
         :type bad: str, optional
         """
         Z_plot = self.Z.copy()
-        #print(f"{v_min=}, {v_max=}, {np.nanmin(self.Z)=}, {np.nanmax(self.Z)=}, ")
+        # print(f"{v_min=}, {v_max=}, {np.nanmin(self.Z)=}, {np.nanmax(self.Z)=}, ")
         if v_min is None:
             v_min = np.nanmin(self.Z)
         if v_max is None:
             v_max = np.nanmax(self.Z)
         # self.Z = np.clip(self.Z, v_min, v_max)
-        #print(f"{v_min=}, {v_max=}, {np.nanmin(self.Z)=}, {np.nanmax(self.Z)=}, ")
+        # print(f"{v_min=}, {v_max=}, {np.nanmin(self.Z)=}, {np.nanmax(self.Z)=}, ")
         Z_plot[Z_plot < v_min] = np.nan
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 7), sharex=True, sharey=True)
@@ -144,7 +141,7 @@ class Gplot:
         cmap_e.set_bad(color="white")  # Bad pixels in WHITE
 
         # Draw Z Estimate
-        #print(v_min, v_max)
+        # print(v_min, v_max)
         im1 = ax1.imshow(
             Z_plot,
             extent=[self.X.min(), self.X.max(), self.Y.min(), self.Y.max()],
@@ -185,9 +182,8 @@ class Gplot:
         :type v_min: float, optional
         :param v_max: maximum Z value to map, defaults to None
         :type v_max: float, optional
-        """
-        """
-        Plot an interactive map of estimated Z and its errors with a discrete color map
+        :param nlevels: number of levels, defaults to 25
+        :type nlevels: int, optional
         """
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 7), sharex=True, sharey=True)
 
@@ -265,97 +261,25 @@ class Gplot:
         plt.close("all")
         gc.collect()
 
-    def zsurf2(self):
-        """
-        A more detailed (and expensive) 3D surface of the estimated Z value
-        """
-        fig = plt.figure(figsize=(12, 9))
-        # We created an axis with 3D projection
-        ax = fig.add_subplot(111, projection="3d")
-
-        # We use plot_surface.
-        # Setting rcount and ccount to 200 allows for excellent detail while maintaining fluidity.
-        # plot_surface handles NaNs by leaving 'gaps' in the mesh, which is acceptable.
-        surf = ax.plot_surface(
-            self.X,
-            self.Y,
-            self.Z,
-            cmap=cm.terrain,
-            linewidth=0,
-            antialiased=True,
-            rcount=100,
-            ccount=100,
-        )
-
-        ax.set_title("Estimated Z")
-        ax.set_xlabel("X")
-        ax.set_ylabel("Y")
-        ax.set_zlabel("Z")
-
-        # --- TRICK FOR EQUAL X-Y SCALE IN 3D ---
-        # Matplotlib 3D doesn't have a simple 'aspect=equal'. We calculate the limits:
-        x_range = self.X.max() - self.X.min()
-        y_range = self.Y.max() - self.Y.min()
-        max_range = max(x_range, y_range) / 2.0
-
-        mid_x = (self.X.max() + self.X.min()) * 0.5
-        mid_y = (self.Y.max() + self.Y.min()) * 0.5
-
-        ax.set_xlim(mid_x - max_range, mid_x + max_range)
-        ax.set_ylim(mid_y - max_range, mid_y + max_range)
-        # -----------------------------------------
-
-        # Add color bar
-        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10, label="Z")
-
-        # Initial angle setting
-        ax.view_init(elev=35, azim=-120)
-
-        plt.show()
-        plt.close("all")
-        gc.collect()
-
-    def esurf2(self):
-        """
-        A more detailed (and expensive) 3D surface of the estimated Z value errors
-        """
-        fig = plt.figure(figsize=(12, 9))
-        ax = fig.add_subplot(111, projection="3d")
-
-        surf = ax.plot_surface(
-            self.X,
-            self.Y,
-            self.E,
-            cmap=cm.inferno,
-            linewidth=0,
-            antialiased=True,
-            rcount=100,
-            ccount=100,
-        )
-
-        ax.set_title("Error")
-        ax.set_zlabel("Error")
-
-        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
-        plt.show()
-        plt.close("all")
-        gc.collect()
-
     def zsurf_gpu(
         self,
         z_floor: float = None,
         v_exag: float = 0.5,
         cmap: str = "earth",
+        contours: bool = False,
     ):
         """
-        Smooth rendering using WebGL and your NVIDIA GPU
+        Smooth rendering using WebGL and your GPU
 
         :param z_floor: plot only above this value, defaults to None
         :type z_floor: float, optional
         :param v_exag: vertical exageration factor, defaults to 0.5
         :type v_exag: float, optional
-        :cmap: plotly color map name, defaults to "earth"
+        :param cmap: plotly color map name, defaults to "earth"
         :type cmap: str, optional
+        :param contours: add contours, defaults to False
+        :type contours: bool, optional
+
         """
         # Optional: To make the surface "die" at the ground instead of sinking
         # Z_plot = self.Z.copy()
@@ -367,12 +291,21 @@ class Gplot:
         )
         range_x = self.X.max() - self.X.min()
         range_y = self.Y.max() - self.Y.min()
+        if contours:
+            fig.update_traces(
+                contours_z=dict(
+                    show=True,
+                    usecolormap=True,
+                    highlightcolor="limegreen",
+                    project_z=True,
+                )
+            )
         fig.update_layout(
             title="Estimated Z 3D (GPU Accelerated)",
             autosize=True,
             scene=dict(
                 zaxis=dict(range=[z_floor, np.nanmax(self.Z) * 1.2]),
-                aspectratio=dict(x=1, y=range_y/range_x, z=v_exag),
+                aspectratio=dict(x=1, y=range_y / range_x, z=v_exag),
             ),
         )
         fig.show()
@@ -383,6 +316,7 @@ class Gplot:
         z_floor: float = None,
         v_exag: float = 0.5,
         cmap: str = "earth",
+        contours: bool = False,
     ):
         """
         Renders the 3D surface using WebGL and opens it in the system's browser.
@@ -394,6 +328,8 @@ class Gplot:
         :type v_exag: float, optional
         :param cmap: plotly color map name, defaults to "earth"
         :type cmap: str, optional
+        :param contours: add contours, defaults to False
+        :type contours: bool, optional
         """
 
         if z_floor is None:
@@ -405,12 +341,21 @@ class Gplot:
         range_x = self.X.max() - self.X.min()
         range_y = self.Y.max() - self.Y.min()
 
+        if contours:
+            fig.update_traces(
+                contours_z=dict(
+                    show=True,
+                    usecolormap=True,
+                    highlightcolor="limegreen",
+                    project_z=True,
+                )
+            )
         fig.update_layout(
             title="Estimated Z 3D (GPU Accelerated)",
             autosize=True,
             scene=dict(
                 zaxis=dict(range=[z_floor, np.nanmax(self.Z) * 1.2]),
-                aspectratio=dict(x=1, y=range_y/range_x, z=v_exag),
+                aspectratio=dict(x=1, y=range_y / range_x, z=v_exag),
             ),
         )
 
@@ -441,47 +386,13 @@ class Gplot:
             print(f"Error trying to open the browser: {e}")
             print(f"You can open the file manually in: {temp_file}")
 
-    def zsurf_gpu2(self):
-        """
-        Smooth rendering using WebGL and your NVIDIA GPU, old version
-        """
-
-        fig = go.Figure(
-            data=[
-                go.Surface(
-                    z=self.Z,
-                    x=self.X,
-                    y=self.Y,
-                    colorscale="earth",
-                    lighting=dict(
-                        ambient=0.4, diffuse=0.5, roughness=0.9, specular=0.1
-                    ),
-                    colorbar=dict(title="Z"),
-                )
-            ]
-        )
-
-        # Adjusting the aspect ratio
-        # The 'z' value in 'aspectratio' controls the vertical exaggeration.
-        fig.update_layout(
-            title="Estimated Z - Interactive 3D Model (GPU)",
-            scene=dict(
-                xaxis_title="X",
-                yaxis_title="Y",
-                zaxis_title="Z",
-                aspectmode="manual",
-                aspectratio=dict(x=1, y=1, z=0.5),
-            ),
-            margin=dict(l=0, r=0, b=0, t=40),
-        )
-        fig.show()
-
     def save_zsurf(
         self,
         filename: str = None,
         z_floor: float = None,
         v_exag: float = 0.5,
         cmap: str = "earth",
+        contours: bool = False,
     ):
         """Export the interactive 3D model to a separate HTML file.
 
@@ -493,13 +404,14 @@ class Gplot:
         :type v_exag: float, optional
         :param cmap: plotly color map name, defaults to "earth"
         :type cmap: str, optional
+        :param contours: add contours, defaults to False
+        :type contours: bool, optional
         """
 
         if filename is None:
             filename = self.title + "_3d_model"
         if z_floor is None:
             z_floor = np.nanmin(self.Z)
-
 
         # 1. Create the figure (same logic as zsurf_gpu)
         range_x = self.X.max() - self.X.min()
@@ -520,6 +432,15 @@ class Gplot:
             ]
         )
 
+        if contours:
+            fig.update_traces(
+                contours_z=dict(
+                    show=True,
+                    usecolormap=True,
+                    highlightcolor="limegreen",
+                    project_z=True,
+                )
+            )
         fig.update_layout(
             title="Estimated Z - Interactive 3D Model",
             scene=dict(
@@ -527,7 +448,7 @@ class Gplot:
                 yaxis_title="Y",
                 zaxis_title="Z",
                 zaxis=dict(range=[z_floor, np.nanmax(self.Z) * 1.2]),
-                aspectratio=dict(x=1, y=range_y/range_x, z=v_exag),
+                aspectratio=dict(x=1, y=range_y / range_x, z=v_exag),
             ),
             margin=dict(l=0, r=0, b=0, t=40),
         )
@@ -536,3 +457,12 @@ class Gplot:
         output_file = f"{filename}.html"
         fig.write_html(output_file)
         print(f"3D model successfully exported to: {output_file}")
+
+    def __repr__(self):
+            # Verificamos si hay datos cargados para evitar errores si el grid está vacío
+            status = "Ready" if self.Z is not None else "Empty (No grid estimated)"
+            shape = f"{self.Z.shape}" if self.Z is not None else "N/A"
+            
+            return (f"<pyGEKO.Gplot | Status: {status} | "
+                    f"Grid Shape: {shape} | "
+                    f"Source: '{self.title}'>")

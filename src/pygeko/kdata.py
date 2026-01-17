@@ -54,11 +54,8 @@ class Kdata:
         self.x_col = "X"
         self.y_col = "Y"
         self.z_col = "Z"
-        print('Column names default to "X", "Y" and "Z"')
         self._nork = 1
         self._nvec = 12
-        print(f"nvec dafaults to: {self._nvec} and nork to: {self._nork}")
-        print("Please, adapt these parameter to your problem!\n")
         self.kdtree = None
         self._scale = None  # To be initialized by self.init_neig()
         self.crossvaldata = None
@@ -547,3 +544,9 @@ class Kdata:
             plt.show()
         plt.close("all")
         gc.collect()
+
+    def __repr__(self):
+            return (f"<pyGEKO.Kdata | source: '{self.title}' | "
+                    f"points: {len(self.dframe)} | "
+                    f"mapping: [{self.x_col}, {self.y_col}, {self.z_col}] | "
+                    f"nvec: {self._nvec}, nork: {self._nork}>")

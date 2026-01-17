@@ -41,7 +41,7 @@ def generate_test_data(
         print(f"Error: The image could not be opened or processed.'{png_path}'. {e}")
         return
 
-    height, width = img_data.shape
+    height, width = img_data.shape[:2]
     print(f"\n--- Processing: {png_path} ---")
     print(
         f"Resolution: {width}x{height} | Z range: [{img_data.min()}, {img_data.max()}]"

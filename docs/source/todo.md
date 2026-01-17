@@ -20,5 +20,5 @@
     * [ ] Thermal-throttling awareness (auto-reduce cores if CPU temp > 80°C).
 * **Quality & Community:**
     * [ ] Testing suite (`pytest`) with >80% coverage.
-    * [ ] Docstrings in all public methods (Google Style).
+    * [ ] Docstrings in all public methods.
     * [ ] Create a `gallery/` folder with example scripts and the St. Helens dataset.

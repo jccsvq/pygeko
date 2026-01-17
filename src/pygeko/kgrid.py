@@ -130,3 +130,14 @@ class Kgrid:
             res_x=self.bins,
             res_y=self.hist,
         )
+
+    def __repr__(self):
+            # Determinamos si el modelo ha sido ajustado
+            model_str = f"| Model: {self.model}" if self.model else "| Model: Not fitted"
+            
+            # Construimos una cadena informativa de varias líneas o una sola compacta
+            return (
+                f"<pyGEKO.Kgrid | Source: '{self.kdata.title}'\n"
+                f"  Window: x[{self.xmin}, {self.xmax}], y[{self.ymin}, {self.ymax}]\n"
+                f"  Grid: bins={self.bins}, hist={self.hist} {model_str} >"
+            )
