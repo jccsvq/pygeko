@@ -11,8 +11,6 @@ pyGEKO: Fast Generalized Covariance Kriging
    :target: https://github.com/jccsvq/pygeko/blob/main/LICENSE
    :alt: License
 
-.. important::
-   This is a first draft of the documentation in the pre-release phase.
 
 **Spatial interpolation made fast, automatic, and hardware-efficient.**
 

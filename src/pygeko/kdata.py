@@ -521,7 +521,7 @@ class Kdata:
         pivot_table = df_tuning.pivot(index="nork", columns="nvec", values="mae")
 
         plt.figure(figsize=(10, 6))
-        ax = sns.heatmap(
+        sns.heatmap(
             pivot_table,
             annot=True,
             fmt=".4f",

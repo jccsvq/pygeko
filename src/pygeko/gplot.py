@@ -70,7 +70,7 @@ class Gplot:
         # We use the column names defined in the exporter
         self.nx = int(self.meta.get("bins", 100))
         self.ny = int(self.meta.get("hist", 100))
-        
+
         # Reshape de los datos (X, Y, Z, Sigma)
         self.X = self.grid_df["X"].values.reshape(self.ny, self.nx)
         self.Y = self.grid_df["Y"].values.reshape(self.ny, self.nx)
@@ -237,8 +237,10 @@ class Gplot:
         )
         fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
         set_xy_axes_equal_3d(ax)  # X-Y axes equal scale !
-        ax.set_title("Estimated Z")
+        ax.set_title("Kriged " + self.meta["z_col"] + " " + self.title)
         ax.set_zlabel(self.meta["z_col"])
+        ax.set_xlabel(self.meta["x_col"])
+        ax.set_ylabel(self.meta["y_col"])
         # Force equal scaling in X-Y (limited in Matplotlib 3D, but it helps)
         ax.set_aspect("auto")
         plt.show()
@@ -256,7 +258,10 @@ class Gplot:
         )
         fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
         set_xy_axes_equal_3d(ax)  # X-Y axes equal scale !
-        ax.set_title("Standard Error")
+        ax.set_title("Standard Error " + self.title)
+        ax.set_xlabel(self.meta["x_col"])
+        ax.set_ylabel(self.meta["y_col"])
+
         plt.show()
         plt.close("all")
         gc.collect()
@@ -310,6 +315,7 @@ class Gplot:
         )
         fig.show()
         gc.collect()
+        # return fig
 
     def zsurf_gpu_PI(
         self,
@@ -459,10 +465,12 @@ class Gplot:
         print(f"3D model successfully exported to: {output_file}")
 
     def __repr__(self):
-            # Verificamos si hay datos cargados para evitar errores si el grid está vacío
-            status = "Ready" if self.Z is not None else "Empty (No grid estimated)"
-            shape = f"{self.Z.shape}" if self.Z is not None else "N/A"
-            
-            return (f"<pyGEKO.Gplot | Status: {status} | "
-                    f"Grid Shape: {shape} | "
-                    f"Source: '{self.title}'>")
+        # Verificamos si hay datos cargados para evitar errores si el grid está vacío
+        status = "Ready" if self.Z is not None else "Empty (No grid estimated)"
+        shape = f"{self.Z.shape}" if self.Z is not None else "N/A"
+
+        return (
+            f"<pyGEKO.Gplot | Status: {status} | "
+            f"Grid Shape: {shape} | "
+            f"Source: '{self.title}'>"
+        )

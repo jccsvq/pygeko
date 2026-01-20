@@ -18,6 +18,33 @@ whose use will be illustrated in this tutorial with the help of two datasets:
 
 Both datasets are included in the package, so you won't need to download them. We'll use the first one throughout this tutorial because its small size will make calculations quick, and we'll reserve the second one for stress testing.
 
+
+## ⚠️ IMPORTANT: Numerical Stability & Normalization
+
+Kriging involves solving systems of linear equations (via the Dual Form) that can become **ill-conditioned** when coordinates (X, Y) or values (Z) have very different orders of magnitude or extremely large values (e.g., UTM coordinates in the millions).
+
+To ensure the best results with the current version of **pyGEKO**, please consider the following when using your own data:
+
+* **Optimal Range:** Our tests show that the solver is most stable and precise when data are normalized to a range between **0 and approximately 1000**.
+* **Manual Scaling:** If your data exceeds these values (e.g.,  or  in geographic coordinates), we strongly recommend manual scaling before estimation, as seen in the examples:
+
+```python
+kd.dframe["Z"] /= 60.0  # Scale elevation to a manageable range
+
+```
+
+
+* **Why it matters:** Without normalization, the covariance matrix can become nearly singular, leading to "noisy" surfaces, banding artifacts, or even solver failure due to floating-point precision limits.
+    - Stability depends on the *Condition Number* of the covariance matrix. If the data are highly dispersed or have enormous magnitudes, this number increases and the matrix inversion loses digits of precision.
+    - Graphics engines (like WebGL in Plotly) prefer coordinates close to the origin to avoid texture flickering (*Z-fighting*).
+* **Isotropy Caution:** When scaling  and , always use the **same scaling factor for both axes** (homothetic scaling) to preserve the geographic distance relationships between neighbors.
+
+> [!NOTE]
+> **Future Roadmap:** An automated `.normalize()` method is planned for a future release (v0.9.1+). This will handle the scaling internally, store the parameters, and automatically de-normalize the results for plotting and exporting, making this manual step obsolete.
+
+
+
+
 ## `Kdata` use
 
 ### Input data

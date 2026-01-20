@@ -8,12 +8,6 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 
-> [!IMPORTANT]
-> **Project Status:** pyGEKO is currently in active development (Beta). 
-> - 📖 **Documentation:** Manuals are being compiled.
-> - 🚀 **First Release:** Expected late January 2026.
-> - ⚠️ At this stage the code may still contain unused, undocumented or experimental methods or functions, as well as traces of comments in Spanish.
-
 > **Full Documentation:** [pygeko.readthedocs.io](https://pygeko.readthedocs.io)
 
 <img src="https://raw.githubusercontent.com/jccsvq/pygeko/main/assets/pyGEKO_logo.png" alt="pyGEKO Logo" width="100" height="100"></img>
