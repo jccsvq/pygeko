@@ -13,40 +13,81 @@ from pygeko.utils import (
 
 
 class Kgrid:
-    """Manages grid definitions and interpolation workflow."""
+    """Manages grid definition and interpolation workflow."""
 
-    def __init__(self, kdata, xmin, xmax, ymin, ymax, bins, hist):
-        """
-        Class constructor
+    def __init__(
+        self,
+        kdata: "Kdata",
+        xmin: float,
+        xmax: float,
+        ymin: float,
+        ymax: float,
+        bins: int,
+        hist: int,
+    ):
+        """Class constructor
 
-        :param kdata: _description_
-        :type kdata: _type_
-        :param xmin: _description_
-        :type xmin: _type_
-        :param xmax: _description_
-        :type xmax: _type_
-        :param ymin: _description_
-        :type ymin: _type_
-        :param ymax: _description_
-        :type ymax: _type_
-        :param bins: _description_
-        :type bins: _type_
-        :param hist: _description_
-        :type hist: _type_
+        :param kdata: Kdata object
+        :type kdata: Kdata
+        :param xmin: estimation window X min
+        :type xmin: float
+        :param xmax: estimation window X max
+        :type xmax: float
+        :param ymin: estimation window Y min
+        :type ymin: float
+        :param ymax: estimation window Y max
+        :type ymax: float
+        :param bins: number of X bins
+        :type bins: int
+        :param hist: number of Y bins
+        :type hist: int
         """
         assert isinstance(kdata, Kdata)
         self.kdata = kdata
         # Estimation window parameters
-        self.xmin = xmin
-        self.xmax = xmax
-        self.ymin = ymin
-        self.ymax = ymax
+        if kdata.normalized:
+            self._xmin, self._ymin, _, _ = kdata.norm_coord(xmin, ymin)
+            self._xmax, self._ymax, _, _ = kdata.norm_coord(xmax, ymax)
+        else:
+            self._xmin = xmin
+            self._xmax = xmax
+            self._ymin = ymin
+            self._ymax = ymax
+
         # Grid resolution
         self.bins = bins  # X axis
         self.hist = hist  # Y axis
         # Model
         self._model = None
         self.zk_final = None
+
+    @property
+    def xmin(self):
+        """
+        X min getter
+        """
+        return self._xmin
+
+    @property
+    def xmax(self):
+        """
+        X max getter
+        """
+        return self._xmax
+
+    @property
+    def ymin(self):
+        """
+        Y min getter
+        """
+        return self._ymin
+
+    @property
+    def ymax(self):
+        """
+        Y max getter
+        """
+        return self._ymax
 
     @property
     def status(self):
@@ -59,10 +100,10 @@ class Kgrid:
         print(f"y_col = {self.kdata.y_col}")
         print(f"z_col = {self.kdata.z_col}")
         print("Window:")
-        print(f"xmin = {self.xmin}")
-        print(f"xmax = {self.xmax}")
-        print(f"ymin = {self.ymin}")
-        print(f"ymax = {self.ymax}")
+        print(f"xmin = {self._xmin}")
+        print(f"xmax = {self._xmax}")
+        print(f"ymin = {self._ymin}")
+        print(f"ymax = {self._ymax}")
         print("Grid:")
         print(f"bins = {self.bins}")
         print(f"hist = {self.hist}")
@@ -132,12 +173,16 @@ class Kgrid:
         )
 
     def __repr__(self):
-            # Determinamos si el modelo ha sido ajustado
-            model_str = f"| Model: {self.model}" if self.model else "| Model: Not fitted"
-            
-            # Construimos una cadena informativa de varias líneas o una sola compacta
-            return (
-                f"<pyGEKO.Kgrid | Source: '{self.kdata.title}'\n"
-                f"  Window: x[{self.xmin}, {self.xmax}], y[{self.ymin}, {self.ymax}]\n"
-                f"  Grid: bins={self.bins}, hist={self.hist} {model_str} >"
-            )
+        # Determinamos si el modelo ha sido ajustado
+        model_str = f"| Model: {self.model}" if self.model else "| Model: Not fitted"
+        status = (
+            "Normalized (0-1000 range)"
+            if self.kdata.normalized
+            else "Raw (Original units)"
+        )
+        # Construimos una cadena informativa de varias líneas o una sola compacta
+        return (
+            f"<pyGEKO.Kgrid | Source: '{self.kdata.title}' | Status: {status} >\n"
+            f"  Window: x[{self.xmin}, {self.xmax}], y[{self.ymin}, {self.ymax}]\n"
+            f"  Grid: bins={self.bins}, hist={self.hist} {model_str} >"
+        )

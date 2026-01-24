@@ -59,31 +59,37 @@ class Kdata:
         self.kdtree = None
         self._scale = None  # To be initialized by self.init_neig()
         self.crossvaldata = None
+        self._norm_params = None
+        self.zk_optimum = None
+        self.model_id = None
+        self.mae = None
+        self.rmse = None
+        self.corr = None
 
-    def clean_data(self, verbose: bool = True)-> int:
+    def clean_data(self, verbose: bool = True) -> int:
         """
         Removes rows containing NaN values in the active X, Y, and Z columns.
-        Should be called after setting x_col, y_col, and z_col if they differ 
+        Should be called after setting x_col, y_col, and z_col if they differ
         from defaults.
 
         :param verbose: print status messages, defaults to True
         :type verbose: bool, optional
         :return: dropped rows count
         :rtype: _type_
-        """        
+        """
         cols_to_check = [self.x_col, self.y_col, self.z_col]
         initial_count = len(self.dframe)
-        
+
         # Eliminamos filas con NaNs solo en las columnas de trabajo
         self.dframe.dropna(subset=cols_to_check, inplace=True)
-        
+
         dropped_count = initial_count - len(self.dframe)
-        
+
         if verbose and dropped_count > 0:
             print(f"🧹 Clean-up: {dropped_count} rows containing NaNs were removed.")
         elif verbose:
             print("✅ Data is clean. No NaNs found in active columns.")
-        
+
         return dropped_count
 
     @property
@@ -199,6 +205,16 @@ class Kdata:
         Prints information about the object
         """
         print("\nData properties:")
+        if self.normalized:
+            print("Data is normalized.")
+            print(
+                f"  Offsets:  x:{self._norm_params['xmin']}, y:{self._norm_params['ymin']}, z:{self._norm_params['zmin']}"
+            )
+            print(
+                f"  Scales:   xy_scale:{self._norm_params['xy_scale']:.4f}, z_scale:{self._norm_params['z_scale']:.4f}\n"
+            )
+        else:
+            print("Data is not normalized.\n")
         print(self.dframe.describe())
         print("\nSetting:")
         print(f"x_col: {self.x_col}")
@@ -212,12 +228,121 @@ class Kdata:
             report_models(self)
         print("\n")
 
+    def normalize(self):
+        """Transform X, Y, and Z so that each variable is within the range
+        (0 - approximately 1000). The transformation for X and Y is homothetic."""
+        if self._norm_params is None:
+            # Calculation of Minimums (Translation)
+            xmin = np.nanmin(self.dframe[self.x_col])
+            ymin = np.nanmin(self.dframe[self.y_col])
+            zmin = np.nanmin(self.dframe[self.z_col])
+
+            # Data translation
+            self.dframe[self.x_col] -= xmin
+            self.dframe[self.y_col] -= ymin
+            self.dframe[self.z_col] -= zmin
+
+            # Homothetic scaling of X and Y to avoid altering the "geographic"
+            # relationship of nearest neighbors of the data.
+            # Using max() ensures the bounding box doesn't exceed 1000 in any direction
+            x_max_shifted = np.nanmax(self.dframe[self.x_col])
+            y_max_shifted = np.nanmax(self.dframe[self.y_col])
+            max_range = max(x_max_shifted, y_max_shifted)
+            xy_scale = 1000.0 / max_range if max_range != 0 else 1.0
+
+            # Scaling X, Y
+            self.dframe[self.x_col] *= xy_scale
+            self.dframe[self.y_col] *= xy_scale
+
+            # Scaling Z avoiding division by zero
+            z_max_shifted = np.nanmax(self.dframe[self.z_col])
+            z_scale = 1000.0 / z_max_shifted if z_max_shifted != 0 else 1.0
+            # Z value scaling
+            self.dframe[self.z_col] *= z_scale
+
+            # Storing normalization parameters in a dictionary
+            self._norm_params = {
+                "xmin": xmin,
+                "ymin": ymin,
+                "zmin": zmin,
+                "xy_scale": xy_scale,
+                "z_scale": z_scale,
+            }
+        else:
+            print("Datasets already normalized. Nothing to do.")
+
+    @property
+    def normalized(self) -> bool:
+        """Returns True if the dataset has been normalized
+
+        :return: _description_
+        :rtype: bool
+        """
+        return self._norm_params is not None
+
+    def denorm_coord(
+        self, x: float, y: float, z: float = 0, e: float = 0
+    ) -> tuple[float, float, float, float]:
+        """
+        Denormalization of coordinates and values Z and E (error/sigma),
+        Z is translated back, E is only un-scaled.
+
+
+        :param x: coordinate X
+        :type x: float
+        :param y: coordinate Y
+        :type y: float
+        :param z: value Z
+        :type z: float
+        :param e: value E (for error/sigma)
+        :type e: float
+        :return: de-normalized coordinates and values
+        :rtype: tuple[float, float, float, float]
+        """
+        if self.normalized:
+            p = self._norm_params
+            return (
+                x / p["xy_scale"] + p["xmin"],
+                y / p["xy_scale"] + p["ymin"],
+                z / p["z_scale"] + p["zmin"],
+                e / p["z_scale"],
+            )
+        return x, y, z, e
+
+    def norm_coord(
+        self, x: float, y: float, z: float = 0, e: float = 0
+    ) -> tuple[float, float, float, float]:
+        """
+        Normalization of coordinates (X, Y), values (Z) and error/spread (E).
+        Note: X, Y, Z are translated and scaled. E is ONLY scaled.
+
+        :param x: coordinate X
+        :type x: float
+        :param y: coordinate Y
+        :type y: float
+        :param z: value Z, defaults to 0
+        :type z: float
+        :param e: value E (for error/sigma), defaults to 0
+        :type e: float
+        :return: normalized coordinates and values
+        :rtype: tuple[float, float, float, float]
+        """
+        if self.normalized:
+            p = self._norm_params
+            return (
+                (x - p["xmin"]) * p["xy_scale"],
+                (y - p["ymin"]) * p["xy_scale"],
+                (z - p["zmin"]) * p["z_scale"],
+                e * p["z_scale"],
+            )
+        return x, y, z, e
+
     def init_neig(self):
         """
         Initialize the KDTree for efficient spatial searching and calculate scaling factors.
         """
         # Let's make sure there are no NaNs
-        self.clean_data(verbose=False)  
+        self.clean_data(verbose=False)
 
         self.coordinates = np.array([self.x, self.y]).T
         self.kdtree = KDTree(self.coordinates)
@@ -388,8 +513,6 @@ class Kdata:
             plt.close("all")
             gc.collect()
 
-
-
     def save(self, verbose=True):
         """
         Save the object as a `.gck` file with metadata and a summary of the configuration for quick identification.
@@ -415,7 +538,9 @@ class Kdata:
         # 2. Filter the payload (heavy regenerable objects)
         # We exclude kdtree and coordinates because init_neig() creates them in a second.
         payload = {
-            k: v for k, v in self.__dict__.items() if k not in ["kdtree", "coordinates"]
+            k: v
+            for k, v in self.__dict__.items()
+            if k not in ["dframe", "kdtree", "coordinates", "Z"]
         }
 
         # 3. Save the compressed package
@@ -442,10 +567,48 @@ class Kdata:
 
         # Load package
         checkpoint = joblib.load(filename)
+        payload = checkpoint["payload"]
+
+        #for k, v in payload.items():
+            # Estimación aproximada del tamaño de cada objeto en bytes
+        #    import sys
+        #    print(f"{k}: {sys.getsizeof(v)} bytes")
+
         meta = checkpoint["metadata"]
+        # Check, only to be sure...
+        # print("checkpoint: ",checkpoint.keys())
+        # print("payload: ",payload.keys())
+
+        # Identify if the saved state was normalized
+        saved_norm_params = payload.get("_norm_params", None)
 
         # Restore variables to the current object
-        self.__dict__.update(checkpoint["payload"])
+        self.__dict__.update(payload)
+
+
+
+        # Data normalization
+        if saved_norm_params is not None:
+            # The saved analysis expects normalized data.
+            # We apply the exact parameters to the dframe just read from the CSV.
+            print("Syncing: Normalizing data to match restored analysis state...")
+
+            p = saved_norm_params
+            self.dframe[self.x_col] = (self.dframe[self.x_col] - p["xmin"]) * p[
+                "xy_scale"
+            ]
+            self.dframe[self.y_col] = (self.dframe[self.y_col] - p["ymin"]) * p[
+                "xy_scale"
+            ]
+            self.dframe[self.z_col] = (self.dframe[self.z_col] - p["zmin"]) * p[
+                "z_scale"
+            ]
+
+            self._norm_params = p
+        else:
+            # If the file is v0.9.0 or was not normalized,
+            # we make sure _norm_params is None.
+            self._norm_params = None
 
         # CRITICAL RECONSTRUCTION
         # Since we didn't save the tree, we're rebuilding it on the fly
@@ -479,7 +642,8 @@ class Kdata:
         with mp.Pool(processes=get_optimal_workers(), maxtasksperchild=1) as pool:
             # Prepare the calls
             multiple_results = [
-                pool.apply_async(_worker_tune, (nk, nv, self, False)) for nk, nv in configs
+                pool.apply_async(_worker_tune, (nk, nv, self, False))
+                for nk, nv in configs
             ]
 
             # Collect results with a progress bar
@@ -498,7 +662,7 @@ class Kdata:
         print(f"\n\n{'=' * 40}")
         print(" TUNING RESULT")
         print(f"{'=' * 40}")
-        #print(df_tuning.to_string(index=False))
+        # print(df_tuning.to_string(index=False))
         print(f"Best setting: nork={best.nork}, nvec={best.nvec}")
         print(f"Minimum MAE: {best.mae:.4f} (Model #{int(best.model_id)})")
         print(f"{'=' * 40}")
@@ -546,7 +710,10 @@ class Kdata:
         gc.collect()
 
     def __repr__(self):
-            return (f"<pyGEKO.Kdata | source: '{self.title}' | "
-                    f"points: {len(self.dframe)} | "
-                    f"mapping: [{self.x_col}, {self.y_col}, {self.z_col}] | "
-                    f"nvec: {self._nvec}, nork: {self._nork}>")
+        status = "Normalized (0-1000 range)" if self.normalized else "Raw (Original units)"
+        return (
+            f"<pyGEKO.Kdata | source: '{self.title}' | Status: {status}\n "
+            f"points: {len(self.dframe)} | "
+            f"mapping: [{self.x_col}, {self.y_col}, {self.z_col}] | "
+            f"nvec: {self._nvec}, nork: {self._nork}>"
+        )

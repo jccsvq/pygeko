@@ -1,7 +1,7 @@
 import ctypes
 import gc
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor
 
 from tqdm import tqdm
 
@@ -469,6 +469,10 @@ def fast_preview(
             Z_grid[i, j] = z
             S_grid[i, j] = s
 
+    if kd_obj.normalized:
+        X,Y,Z_grid,S_grid = kd_obj.denorm_coord(X,Y,Z_grid,S_grid)
+
+
     # 3. Create the figure
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
 
@@ -477,7 +481,11 @@ def fast_preview(
     im1 = ax1.contourf(X, Y, Z_grid, levels=30, cmap="terrain")
     fig.colorbar(im1, ax=ax1, label="Z Estimated")
     # Superimpose the original points to see the density.
-    ax1.scatter(kd_obj.x, kd_obj.y, c="black", s=2, alpha=0.3, label="Datos")
+    if kd_obj.normalized:
+        dnx,dny,_,_ = kd_obj.denorm_coord(kd_obj.x,kd_obj.y)
+        ax1.scatter(dnx, dny, c="black", s=2, alpha=0.3, label="Datos")
+    else:
+        ax1.scatter(kd_obj.x, kd_obj.y, c="black", s=2, alpha=0.3, label="Datos")
     ax1.set_title(f"Kriged Map (nork={kd_obj.nork}, nvec={kd_obj.nvec})")
     ax1.set_xlabel(kd_obj.x_col)
     ax1.set_ylabel(kd_obj.y_col)
@@ -488,7 +496,10 @@ def fast_preview(
     # --- Panel 2: Error (Uncertainty) ---
     im2 = ax2.contourf(X, Y, S_grid, levels=30, cmap="magma")
     fig.colorbar(im2, ax=ax2, label="Sigma (Error)")
-    ax1.scatter(kd_obj.x, kd_obj.y, c="white", s=2, alpha=0.2)
+    if kd_obj.normalized:
+       ax1.scatter(dnx, dny, c="black", s=2, alpha=0.3, label="Datos")
+    else:
+        ax1.scatter(kd_obj.x, kd_obj.y, c="black", s=2, alpha=0.3, label="Datos")
     ax2.set_title("Standard Error Map")
     ax2.set_xlabel(kd_obj.x_col)
     ax2.set_aspect(
@@ -631,6 +642,8 @@ def export_grid(
     :param res_y: grid size Y, defaults to 100
     :type res_y: int, optional
     """
+    from pygeko.__about__ import __version__ as pygeko_version
+
     x_min, x_max = kg_obj.xmin, kg_obj.xmax
     y_min, y_max = kg_obj.ymin, kg_obj.ymax
 
@@ -643,30 +656,47 @@ def export_grid(
 
     # We use ProcessPoolExecutor to distribute the rows among the cores
     all_results = []
-    # with ProcessPoolExecutor(max_workers=4) as executor:
+    # with ProcessPoolExecutor(max_workers=3 if rpi5 else all) as executor:
     with ProcessPoolExecutor(max_workers=get_optimal_workers()) as executor:
-        # We map the function to each value of y (row)
-        futures = {
-            executor.submit(_process_row, y, xi, kg_obj.kdata, zk_vec): y for y in yi
-        }
-        # 2. Usamos as_completed para capturar resultados según terminen
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Kriging"):
-            row_index = futures[future]
-            try:
-                all_results.extend(future.result())
-                # Guardar el resultado en tu matriz...
-            except Exception as e:
-                print(f"Error en fila {row_index}: {e}")
+        # executor.map returns the results in order
+        results_generator = list(tqdm(
+            executor.map(_process_row, yi, [xi]*len(yi), [kg_obj.kdata]*len(yi), [zk_vec]*len(yi)),
+            total=len(yi),
+            desc="Kriging"
+        ))
+        
+        # Unimos las listas de cada fila
+        all_results = [item for sublist in results_generator for item in sublist]
 
-    # Save results
-    with open(filename1, "w") as f:
-        f.write("X,Y,Z_ESTIM,SIGMA\n")
-        for res in all_results:
-            f.write(f"{res[0]:.3f},{res[1]:.3f},{res[2]:.4f},{res[3]:.4f}\n")
+    # Convert to a NumPy array for block operations (if it isn't already)
+    results_array = np.array(all_results)
+    if kg_obj.kdata.normalized:
+        p = kg_obj.kdata._norm_params
+        # Apply denormalization to the entire columns
+        # X and Y: Scale inversion and translation
+        results_array[:, 0] = (results_array[:, 0] / p["xy_scale"]) + p["xmin"]
+        results_array[:, 1] = (results_array[:, 1] / p["xy_scale"]) + p["ymin"]
+        # Z: Scale inversion and translation
+        results_array[:, 2] = (results_array[:, 2] / p["z_scale"]) + p["zmin"]
+        # SIGMA (E): Scale inversion only scale 
+        results_array[:, 3] = (results_array[:, 3] / p["z_scale"]) 
 
+    # Save results 
+    #with open(filename1, "w") as f: 
+        #f.write("X,Y,Z_ESTIM,SIGMA\n") 
+        # We use np.savetxt if we want maximum speed, 
+        # or this loop if you prefer to keep control of the format: 
+        #for row in results_array: 
+        #    f.write(f"{row[0]:.3f},{row[1]:.3f},{row[2]:.4f},{row[3]:.4f}\n")
+
+    mode_str = "Normalized Mode" if kg_obj.kdata.normalized else "Raw Mode"
+    header = f"# Generated with pyGEKO {pygeko_version} ({mode_str})\nX,Y,Z_ESTIM,SIGMA"
+
+    np.savetxt(filename1, results_array, delimiter=",", header=header, comments="", fmt="%.3f,%.3f,%.4f,%.4f")
     print(f"Export completed. Now writing metadata to {filename2}...")
     with open(filename2, "w") as f:
         f.write("type: GRID\n")
+        f.write(f"creator: pyGEKO v{pygeko_version}\n")
         f.write(f"file: {kg_obj.kdata.title}\n")
         f.write(f"x_col: {kg_obj.kdata.x_col}\n")
         f.write(f"y_col: {kg_obj.kdata.y_col}\n")

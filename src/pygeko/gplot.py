@@ -53,23 +53,23 @@ class Gplot:
         self.title = os.path.basename(fnamebase)
 
         # Load grid data
-        self.grid_df = pd.read_csv(fnamebase + ".grd")
+        self.grid_df = pd.read_csv(fnamebase + ".grd", comment="#")
 
         # Load metadata
-        self.meta = {}
+        self._meta = {}
         try:
             with open(fnamebase + ".hdr", "r") as f:
                 for line in f:
                     if ":" in line:
                         key, val = line.strip().split(": ", 1)
-                        self.meta[key] = val
+                        self._meta[key] = val
         except FileNotFoundError:
             print(f"Warning: Metadata file not found {fnamebase}.hdr")
 
         # Extract dimensions and prepare 2D arrays for plotting
         # We use the column names defined in the exporter
-        self.nx = int(self.meta.get("bins", 100))
-        self.ny = int(self.meta.get("hist", 100))
+        self.nx = int(self._meta.get("bins", 100))
+        self.ny = int(self._meta.get("hist", 100))
 
         # Reshape de los datos (X, Y, Z, Sigma)
         self.X = self.grid_df["X"].values.reshape(self.ny, self.nx)
@@ -83,8 +83,8 @@ class Gplot:
         Print grid metadata
         """
         print("\nGrid metadata:")
-        for _ in self.meta:
-            print("    ", _, "=", self.meta[_])
+        for _ in self._meta:
+            print("    ", _, "=", self._meta[_])
 
     def _format_coord(self, x: np.array, y: np.array) -> str:
         """
@@ -226,6 +226,331 @@ class Gplot:
         plt.close("all")
         gc.collect()
 
+    def _round_to_standard(self, value: float) -> float:
+        """
+        Rounds a value to the nearest 'geographic standard' interval:
+        1, 2, 5, 10, 20, 50, 100, 200, 500, 1000...
+
+        :param value: number to round
+        :type value: float
+        :return: rounded value
+        :rtype: float
+        """
+        if value <= 0:
+            return 1
+        # Get the order of magnitude (e.g., 135 -> 100, so magnitude is 100)
+        magnitude = 10 ** np.floor(np.log10(value))
+        # Normalized value between 1 and 10
+        norm = value / magnitude
+
+        # Standard steps in cartography
+        steps = np.array([1, 2, 5, 10])
+        # Find the closest step
+        closest_step = steps[np.argmin(np.abs(steps - norm))]
+
+        return closest_step * magnitude
+
+    def topo(
+        self,
+        v_min: float = None,
+        v_max: float = None,
+        step_thin: float = None,
+        step_thick: float = None,
+        color: str = "k",
+        show_scale: bool = True,
+        north_angle: float = 0.0,
+    ):
+        """
+        Plot a professional topographic map with thin and thick (labeled) contour lines.
+
+        :param v_min: minimum Z value to map, defaults to None
+        :type v_min: float, optional
+        :param v_max: maximum Z value to map, defaults to None
+        :type v_max: float, optional
+        :param step_thin: interval for ordinary lines (e.g., 20m) defaults to None
+        :type step_thin: float, optional
+        :param step_thick: interval for index/master lines (e.g., 100m) defaults to None
+        :type step_thick: float, optional
+        :param color:  color of the lines ('k' for black, 'sienna' for classic topo, 'royalblue' for bathymetry) defaults to "k"
+        :type color: str, optional
+        :param show_scale: show scale bar, defaults to True
+        :type show_scale: bool, optional
+        :param north_angle: angle of the north arrow respect to Y axis, defaults to 0.0
+        :type north_angle: float, optional
+        """
+        fig, ax1 = plt.subplots(1, 1, figsize=(10, 10))
+
+        z_min_real, z_max_real = np.nanmin(self.Z), np.nanmax(self.Z)
+        z_range = z_max_real - z_min_real
+
+        # --- Interval Logic ---
+        if step_thin is None:
+            step_thin = self._round_to_standard(z_range / 40)
+        if step_thick is None:
+            step_thick = step_thin * 5
+
+        if v_min is None:
+            v_min = np.floor(z_min_real / step_thin) * step_thin
+        if v_max is None:
+            v_max = np.ceil(z_max_real / step_thin) * step_thin
+
+        levels_thin = np.arange(v_min, v_max + step_thin, step_thin)
+        levels_thick = np.arange(v_min, v_max + step_thick, step_thick)
+
+        # --- Drawing Curves ---
+        _ = ax1.contour(
+            self.X,
+            self.Y,
+            self.Z,
+            levels=levels_thin,
+            colors=color,
+            linewidths=0.4,
+            alpha=0.4,
+        )
+        c_thick = ax1.contour(
+            self.X,
+            self.Y,
+            self.Z,
+            levels=levels_thick,
+            colors=color,
+            linewidths=1.2,
+            alpha=0.8,
+        )
+        ax1.clabel(c_thick, fontsize=8, inline=True, fmt="%1.0f", inline_spacing=2)
+
+        # --- Graphic Scale ---
+        if show_scale:
+            from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+            import matplotlib.font_manager as fm
+
+            x_range = np.nanmax(self.X) - np.nanmin(self.X)
+            s_len = self._round_to_standard(x_range * 0.2)
+            label = f"{s_len:g} m" if s_len < 1000 else f"{s_len / 1000:g} km"
+            bar = AnchoredSizeBar(
+                ax1.transData,
+                s_len,
+                label,
+                "lower right",
+                pad=0.8,
+                color=color,
+                frameon=False,
+                size_vertical=x_range / 1500,
+                fontproperties=fm.FontProperties(size=10, weight="bold"),
+            )
+            ax1.add_artist(bar)
+
+        # --- North Arrow (Infallible Vector Version) ---
+        if north_angle is not None:
+            # Compass center at fraction coordinates (0.08, 0.88)
+            nx, ny = 0.08, 0.88
+
+            # Convert angle to radians (Matplotlib uses clockwise, we compensate)
+            # North (0°) should point upwards (90° on the unit circle)
+            rad = np.radians(90 - north_angle)
+
+            # Arrow length
+            L = 0.05
+
+            # We calculate the arrowhead vector
+            dx = L * np.cos(rad)
+            dy = L * np.sin(rad)
+
+            # We draw the arrow using annotate but as a pure vector
+            ax1.annotate(
+                "",
+                xy=(nx + dx, ny + dy),
+                xycoords="axes fraction",
+                xytext=(nx, ny),
+                textcoords="axes fraction",
+                arrowprops=dict(arrowstyle="->", color=color, lw=2, mutation_scale=20),
+            )
+
+            # We put the 'N' a little further beyond the tip so that it doesn't bump into anything
+            ax1.text(
+                nx + dx * 1.3,
+                ny + dy * 1.3,
+                "N",
+                transform=ax1.transAxes,
+                ha="center",
+                va="center",
+                weight="bold",
+                color=color,
+                fontsize=12,
+            )
+        # --- Final Aesthetics ---
+        ax1.set_aspect("equal")
+        ax1.set_facecolor("white")
+        ax1.set_title(
+            f"Topographic Map - {self.title if hasattr(self, 'title') else ''}", pad=20
+        )
+
+        plt.tight_layout()
+        plt.show()
+        plt.close("all")
+        gc.collect()
+
+    def topoHB(
+        self,
+        v_min: float = None,
+        v_max: float = None,
+        step_thin: float = None,
+        step_thick: float = None,
+        color: str = "k",
+        show_scale: bool = True,
+        north_angle: float = 0.0,
+        sealevel: float = 0.0,
+    ):
+        """
+        (Experimental) Plot a professional combined hypsometric/bathymetric map with thin and thick (labeled) contour lines,
+        sienna color for Z >= 0 and royalblue for Z < 0.
+
+        :param v_min: minimum Z value to map, defaults to None
+        :type v_min: float, optional
+        :param v_max: maximum Z value to map, defaults to None
+        :type v_max: float, optional
+        :param step_thin: interval for ordinary lines (e.g., 20m) defaults to None
+        :type step_thin: float, optional
+        :param step_thick: interval for index/master lines (e.g., 100m) defaults to None
+        :type step_thick: float, optional
+        :param color:  color of the bar line defaults to "k"
+        :type color: str, optional
+        :param show_scale: show scale bar, defaults to True
+        :type show_scale: bool, optional
+        :param north_angle: angle of the north arrow respect to Y axis, defaults to 0.0
+        :type north_angle: float, optional
+        :param sealevel: sea level, defaults to 0.0
+        :type sealevel: float, optional
+        """
+        color_land = 'sienna'
+        color_sea = 'royalblue'
+
+        plot_Z = self.Z.copy()
+        plot_Z -= sealevel
+
+
+
+        fig, ax1 = plt.subplots(1, 1, figsize=(10, 10))
+
+        z_min_real, z_max_real = np.nanmin(self.Z), np.nanmax(self.Z)
+        z_range = z_max_real - z_min_real
+
+        # --- Interval Logic ---
+        if step_thin is None:
+            step_thin = self._round_to_standard(z_range / 40)
+        if step_thick is None:
+            step_thick = step_thin * 5
+
+        if v_min is None:
+            v_min = np.floor(z_min_real / step_thin) * step_thin
+        if v_max is None:
+            v_max = np.ceil(z_max_real / step_thin) * step_thin
+
+        levels_thin = np.arange(v_min, v_max + step_thin, step_thin)
+        levels_thick = np.arange(v_min, v_max + step_thick, step_thick)
+
+        # --- Drawing Curves ---
+        # --- 1. Draw ORDINARY (Fine) outlines ---
+        # Land (Z >= 0)
+        ax1.contour(self.X, self.Y, plot_Z, 
+                    levels=[lvl for lvl in levels_thin if lvl >= 0],
+                    colors=color_land, linewidths=0.4, alpha=0.4)
+        # Sea (Z < 0)
+        ax1.contour(self.X, self.Y, plot_Z, 
+                    levels=[lvl for lvl in levels_thin if lvl < 0],
+                    colors=color_sea, linewidths=0.4, alpha=0.4)
+
+        # --- 2. Draw MASTER outlines (Thick and labeled) ---
+        # Land
+        levels_thick_land = [lvl for lvl in levels_thick if lvl >= 0]
+        if levels_thick_land:
+            c_thick_land = ax1.contour(self.X, self.Y, plot_Z, 
+                                       levels=levels_thick_land,
+                                       colors=color_land, linewidths=1.2, alpha=0.8)
+            ax1.clabel(c_thick_land, fontsize=8, inline=True, fmt='%1.0f', inline_spacing=2)
+
+        # Sea
+        levels_thick_sea = [lvl for lvl in levels_thick if lvl < 0]
+        if levels_thick_sea:
+            c_thick_sea = ax1.contour(self.X, self.Y, plot_Z, 
+                                      levels=levels_thick_sea,
+                                      colors=color_sea, linewidths=1.2, alpha=0.8)
+            ax1.clabel(c_thick_sea, fontsize=8, inline=True, fmt='%1.0f', inline_spacing=2, zorder=3)
+
+        # --- 3. Coastline (Z = 0) optionally more marked ---
+        ax1.contour(self.X, self.Y, plot_Z, levels=[0], colors='k', linewidths=1.1)
+        
+        # --- Graphic Scale ---
+        if show_scale:
+            from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+            import matplotlib.font_manager as fm
+
+            x_range = np.nanmax(self.X) - np.nanmin(self.X)
+            s_len = self._round_to_standard(x_range * 0.2)
+            label = f"{s_len:g} m" if s_len < 1000 else f"{s_len / 1000:g} km"
+            bar = AnchoredSizeBar(
+                ax1.transData,
+                s_len,
+                label,
+                "lower right",
+                pad=0.8,
+                color=color,
+                frameon=False,
+                size_vertical=x_range / 1500,
+                fontproperties=fm.FontProperties(size=10, weight="bold"),
+            )
+            ax1.add_artist(bar)
+
+        # --- North Arrow (Infallible Vector Version) ---
+        if north_angle is not None:
+            # Compass center at fraction coordinates (0.08, 0.88)
+            nx, ny = 0.08, 0.88
+
+            # Convert angle to radians (Matplotlib uses clockwise, we compensate)
+            # North (0°) should point upwards (90° on the unit circle)
+            rad = np.radians(90 - north_angle)
+
+            # Arrow length
+            L = 0.05
+
+            # We calculate the arrowhead vector
+            dx = L * np.cos(rad)
+            dy = L * np.sin(rad)
+
+            # We draw the arrow using annotate but as a pure vector
+            ax1.annotate(
+                "",
+                xy=(nx + dx, ny + dy),
+                xycoords="axes fraction",
+                xytext=(nx, ny),
+                textcoords="axes fraction",
+                arrowprops=dict(arrowstyle="->", color=color, lw=2, mutation_scale=20),
+            )
+
+            # We put the 'N' a little further beyond the tip so that it doesn't bump into anything
+            ax1.text(
+                nx + dx * 1.3,
+                ny + dy * 1.3,
+                "N",
+                transform=ax1.transAxes,
+                ha="center",
+                va="center",
+                weight="bold",
+                color=color,
+                fontsize=12,
+            )
+        # --- Final Aesthetics ---
+        ax1.set_aspect("equal")
+        ax1.set_facecolor("white")
+        ax1.set_title(
+            f"Topographic Map - {self.title if hasattr(self, 'title') else ''}", pad=20
+        )
+
+        plt.tight_layout()
+        plt.show()
+        plt.close("all")
+        gc.collect()
+
+
     def zsurf(self):
         """
         3D surface of the estimated Z
@@ -237,10 +562,10 @@ class Gplot:
         )
         fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
         set_xy_axes_equal_3d(ax)  # X-Y axes equal scale !
-        ax.set_title("Kriged " + self.meta["z_col"] + " " + self.title)
-        ax.set_zlabel(self.meta["z_col"])
-        ax.set_xlabel(self.meta["x_col"])
-        ax.set_ylabel(self.meta["y_col"])
+        ax.set_title("Kriged " + self._meta["z_col"] + " " + self.title)
+        ax.set_zlabel(self._meta["z_col"])
+        ax.set_xlabel(self._meta["x_col"])
+        ax.set_ylabel(self._meta["y_col"])
         # Force equal scaling in X-Y (limited in Matplotlib 3D, but it helps)
         ax.set_aspect("auto")
         plt.show()
@@ -259,8 +584,8 @@ class Gplot:
         fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
         set_xy_axes_equal_3d(ax)  # X-Y axes equal scale !
         ax.set_title("Standard Error " + self.title)
-        ax.set_xlabel(self.meta["x_col"])
-        ax.set_ylabel(self.meta["y_col"])
+        ax.set_xlabel(self._meta["x_col"])
+        ax.set_ylabel(self._meta["y_col"])
 
         plt.show()
         plt.close("all")
