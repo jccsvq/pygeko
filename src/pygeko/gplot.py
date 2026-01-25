@@ -76,6 +76,7 @@ class Gplot:
         self.Y = self.grid_df["Y"].values.reshape(self.ny, self.nx)
         self.Z = self.grid_df["Z_ESTIM"].values.reshape(self.ny, self.nx)
         self.E = self.grid_df["SIGMA"].values.reshape(self.ny, self.nx)
+        self._sealevel = None
 
     @property
     def metadata(self):
@@ -101,6 +102,8 @@ class Gplot:
         ix = np.argmin(np.abs(self.X[0, :] - x))
         iy = np.argmin(np.abs(self.Y[:, 0] - y))
         z_val = self.Z[iy, ix]
+        if self._sealevel is not None:
+            z_val -= self._sealevel
         e_val = self.E[iy, ix]
         return f"X={x:.2f}, Y={y:.2f} | Z={z_val:.2f}, Err={e_val:.2f}"
 
@@ -252,145 +255,7 @@ class Gplot:
 
     def topo(
         self,
-        v_min: float = None,
-        v_max: float = None,
-        step_thin: float = None,
-        step_thick: float = None,
-        color: str = "k",
-        show_scale: bool = True,
-        north_angle: float = 0.0,
-    ):
-        """
-        Plot a professional topographic map with thin and thick (labeled) contour lines.
-
-        :param v_min: minimum Z value to map, defaults to None
-        :type v_min: float, optional
-        :param v_max: maximum Z value to map, defaults to None
-        :type v_max: float, optional
-        :param step_thin: interval for ordinary lines (e.g., 20m) defaults to None
-        :type step_thin: float, optional
-        :param step_thick: interval for index/master lines (e.g., 100m) defaults to None
-        :type step_thick: float, optional
-        :param color:  color of the lines ('k' for black, 'sienna' for classic topo, 'royalblue' for bathymetry) defaults to "k"
-        :type color: str, optional
-        :param show_scale: show scale bar, defaults to True
-        :type show_scale: bool, optional
-        :param north_angle: angle of the north arrow respect to Y axis, defaults to 0.0
-        :type north_angle: float, optional
-        """
-        fig, ax1 = plt.subplots(1, 1, figsize=(10, 10))
-
-        z_min_real, z_max_real = np.nanmin(self.Z), np.nanmax(self.Z)
-        z_range = z_max_real - z_min_real
-
-        # --- Interval Logic ---
-        if step_thin is None:
-            step_thin = self._round_to_standard(z_range / 40)
-        if step_thick is None:
-            step_thick = step_thin * 5
-
-        if v_min is None:
-            v_min = np.floor(z_min_real / step_thin) * step_thin
-        if v_max is None:
-            v_max = np.ceil(z_max_real / step_thin) * step_thin
-
-        levels_thin = np.arange(v_min, v_max + step_thin, step_thin)
-        levels_thick = np.arange(v_min, v_max + step_thick, step_thick)
-
-        # --- Drawing Curves ---
-        _ = ax1.contour(
-            self.X,
-            self.Y,
-            self.Z,
-            levels=levels_thin,
-            colors=color,
-            linewidths=0.4,
-            alpha=0.4,
-        )
-        c_thick = ax1.contour(
-            self.X,
-            self.Y,
-            self.Z,
-            levels=levels_thick,
-            colors=color,
-            linewidths=1.2,
-            alpha=0.8,
-        )
-        ax1.clabel(c_thick, fontsize=8, inline=True, fmt="%1.0f", inline_spacing=2)
-
-        # --- Graphic Scale ---
-        if show_scale:
-            from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
-            import matplotlib.font_manager as fm
-
-            x_range = np.nanmax(self.X) - np.nanmin(self.X)
-            s_len = self._round_to_standard(x_range * 0.2)
-            label = f"{s_len:g} m" if s_len < 1000 else f"{s_len / 1000:g} km"
-            bar = AnchoredSizeBar(
-                ax1.transData,
-                s_len,
-                label,
-                "lower right",
-                pad=0.8,
-                color=color,
-                frameon=False,
-                size_vertical=x_range / 1500,
-                fontproperties=fm.FontProperties(size=10, weight="bold"),
-            )
-            ax1.add_artist(bar)
-
-        # --- North Arrow (Infallible Vector Version) ---
-        if north_angle is not None:
-            # Compass center at fraction coordinates (0.08, 0.88)
-            nx, ny = 0.08, 0.88
-
-            # Convert angle to radians (Matplotlib uses clockwise, we compensate)
-            # North (0°) should point upwards (90° on the unit circle)
-            rad = np.radians(90 - north_angle)
-
-            # Arrow length
-            L = 0.05
-
-            # We calculate the arrowhead vector
-            dx = L * np.cos(rad)
-            dy = L * np.sin(rad)
-
-            # We draw the arrow using annotate but as a pure vector
-            ax1.annotate(
-                "",
-                xy=(nx + dx, ny + dy),
-                xycoords="axes fraction",
-                xytext=(nx, ny),
-                textcoords="axes fraction",
-                arrowprops=dict(arrowstyle="->", color=color, lw=2, mutation_scale=20),
-            )
-
-            # We put the 'N' a little further beyond the tip so that it doesn't bump into anything
-            ax1.text(
-                nx + dx * 1.3,
-                ny + dy * 1.3,
-                "N",
-                transform=ax1.transAxes,
-                ha="center",
-                va="center",
-                weight="bold",
-                color=color,
-                fontsize=12,
-            )
-        # --- Final Aesthetics ---
-        ax1.set_aspect("equal")
-        ax1.set_facecolor("white")
-        ax1.set_title(
-            f"Topographic Map - {self.title if hasattr(self, 'title') else ''}", pad=20
-        )
-
-        plt.tight_layout()
-        plt.show()
-        plt.close("all")
-        gc.collect()
-
-    def topoHB(
-        self,
+        modeHB: bool = False,
         v_min: float = None,
         v_max: float = None,
         step_thin: float = None,
@@ -399,11 +264,17 @@ class Gplot:
         show_scale: bool = True,
         north_angle: float = 0.0,
         sealevel: float = 0.0,
+        hillshade: bool = False,
+        azimuth: float = 315.0,
+        alt: float = 45.0,
+        out_file: str = None,
     ):
         """
-        (Experimental) Plot a professional combined hypsometric/bathymetric map with thin and thick (labeled) contour lines,
-        sienna color for Z >= 0 and royalblue for Z < 0.
+        Plot a professional topographic map. Supports combined hypsometric/bathymetric
+        colors (Sienna/RoyalBlue) and Hillshading.
 
+        :param modeHB: hypsometric/bathymetric mode, defaults to False
+        :type modeHB: bool, optional
         :param v_min: minimum Z value to map, defaults to None
         :type v_min: float, optional
         :param v_max: maximum Z value to map, defaults to None
@@ -420,65 +291,132 @@ class Gplot:
         :type north_angle: float, optional
         :param sealevel: sea level, defaults to 0.0
         :type sealevel: float, optional
+        :param hillshade: add hillshade, defaults to False
+        :type hillshade: bool, optional
+        :param azimuth: azimuth of the hillshade, defaults to 315
+        :type azimuth: float, optional
+        :param alt: altitude of the hillshade, defaults to 45
+        :type alt: float, optional
+        :param out_file: output file name, defaults to None
+        :type out_file: str, optional
         """
-        color_land = 'sienna'
-        color_sea = 'royalblue'
-
-        plot_Z = self.Z.copy()
-        plot_Z -= sealevel
-
-
+        # 1. --- INITIAL SETUP ---
+        color_land, color_sea = ("sienna", "royalblue") if modeHB else (color, color)
+        self._sealevel = sealevel  # for format_coord
 
         fig, ax1 = plt.subplots(1, 1, figsize=(10, 10))
 
-        z_min_real, z_max_real = np.nanmin(self.Z), np.nanmax(self.Z)
-        z_range = z_max_real - z_min_real
+        # 2. --- BACKGROUND LAYER: HILLSHADE ---
+        if hillshade:
+            from matplotlib.colors import LightSource
 
-        # --- Interval Logic ---
+            # Limits
+            x0, x1 = np.nanmin(self.X), np.nanmax(self.X)
+            y0, y1 = np.nanmin(self.Y), np.nanmax(self.Y)
+
+            # We define the light source
+            ls = LightSource(azdeg=azimuth, altdeg=alt)
+            shaded = ls.hillshade(self.Z, vert_exag=1.0)
+
+            # Orientation correction for shading
+            if self.Y[0, 0] > self.Y[-1, 0]:
+                shaded = np.flipud(shaded)
+
+            ax1.imshow(
+                shaded,
+                extent=[x0, x1, y0, y1],
+                cmap="gray",
+                origin="lower",
+                alpha=0.25,
+                interpolation="bilinear",
+            )
+            # Water dough (optional)
+            if modeHB:
+                ax1.contourf(
+                    self.X,
+                    self.Y,
+                    self.Z,
+                    levels=[-99999, sealevel],
+                    colors=["#aaccff"],
+                    alpha=0.3,
+                )
+
+        # 3. --- Level Logic ---
+        z_rel = self.Z - sealevel
+        z_min, z_max = np.nanmin(z_rel), np.nanmax(z_rel)
+        z_range = z_max - z_min
+
         if step_thin is None:
             step_thin = self._round_to_standard(z_range / 40)
         if step_thick is None:
             step_thick = step_thin * 5
 
-        if v_min is None:
-            v_min = np.floor(z_min_real / step_thin) * step_thin
-        if v_max is None:
-            v_max = np.ceil(z_max_real / step_thin) * step_thin
+        # Limit setting
+        v_min = v_min if v_min is not None else np.floor(z_min / step_thin) * step_thin
+        v_max = v_max if v_max is not None else np.ceil(z_max / step_thin) * step_thin
 
         levels_thin = np.arange(v_min, v_max + step_thin, step_thin)
         levels_thick = np.arange(v_min, v_max + step_thick, step_thick)
 
-        # --- Drawing Curves ---
-        # --- 1. Draw ORDINARY (Fine) outlines ---
-        # Land (Z >= 0)
-        ax1.contour(self.X, self.Y, plot_Z, 
-                    levels=[lvl for lvl in levels_thin if lvl >= 0],
-                    colors=color_land, linewidths=0.4, alpha=0.4)
-        # Sea (Z < 0)
-        ax1.contour(self.X, self.Y, plot_Z, 
-                    levels=[lvl for lvl in levels_thin if lvl < 0],
-                    colors=color_sea, linewidths=0.4, alpha=0.4)
+        # 4. --- CONTOUR DRAWING ---
+        # Ordinary
+        ax1.contour(
+            self.X,
+            self.Y,
+            z_rel,
+            levels=[_ for _ in levels_thin if _ >= 0],
+            colors=color_land,
+            linewidths=0.4,
+            alpha=0.4,
+        )
+        ax1.contour(
+            self.X,
+            self.Y,
+            z_rel,
+            levels=[_ for _ in levels_thin if _ < 0],
+            colors=color_sea,
+            linewidths=0.4,
+            alpha=0.4,
+        )
 
-        # --- 2. Draw MASTER outlines (Thick and labeled) ---
-        # Land
-        levels_thick_land = [lvl for lvl in levels_thick if lvl >= 0]
-        if levels_thick_land:
-            c_thick_land = ax1.contour(self.X, self.Y, plot_Z, 
-                                       levels=levels_thick_land,
-                                       colors=color_land, linewidths=1.2, alpha=0.8)
-            ax1.clabel(c_thick_land, fontsize=8, inline=True, fmt='%1.0f', inline_spacing=2)
+        # Master
+        l_thick_land = [_ for _ in levels_thick if _ >= 0]
+        if l_thick_land:
+            c_land = ax1.contour(
+                self.X,
+                self.Y,
+                z_rel,
+                levels=l_thick_land,
+                colors=color_land,
+                linewidths=1.2,
+                alpha=0.8,
+            )
+            ax1.clabel(c_land, fontsize=8, inline=True, fmt="%1.0f")
 
-        # Sea
-        levels_thick_sea = [lvl for lvl in levels_thick if lvl < 0]
-        if levels_thick_sea:
-            c_thick_sea = ax1.contour(self.X, self.Y, plot_Z, 
-                                      levels=levels_thick_sea,
-                                      colors=color_sea, linewidths=1.2, alpha=0.8)
-            ax1.clabel(c_thick_sea, fontsize=8, inline=True, fmt='%1.0f', inline_spacing=2, zorder=3)
+        l_thick_sea = [_ for _ in levels_thick if _ < 0]
+        if l_thick_sea:
+            c_sea = ax1.contour(
+                self.X,
+                self.Y,
+                z_rel,
+                levels=l_thick_sea,
+                colors=color_sea,
+                linewidths=1.2,
+                alpha=0.8,
+            )
+            ax1.clabel(c_sea, fontsize=8, inline=True, fmt="%1.0f")
 
-        # --- 3. Coastline (Z = 0) optionally more marked ---
-        ax1.contour(self.X, self.Y, plot_Z, levels=[0], colors='k', linewidths=1.1)
-        
+        # Coastline (Z = 0) optionally more marked
+        if modeHB:
+            ax1.contour(
+                self.X,
+                self.Y,
+                z_rel,
+                levels=[0],
+                colors="k",
+                linewidths=1.1,
+            )
+
         # --- Graphic Scale ---
         if show_scale:
             from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
@@ -495,7 +433,7 @@ class Gplot:
                 pad=0.8,
                 color=color,
                 frameon=False,
-                size_vertical=x_range / 1500,
+                size_vertical=x_range / 200,
                 fontproperties=fm.FontProperties(size=10, weight="bold"),
             )
             ax1.add_artist(bar)
@@ -538,6 +476,8 @@ class Gplot:
                 color=color,
                 fontsize=12,
             )
+        # Interactivity: Display values ​​in the status bar
+        ax1.format_coord = self._format_coord
         # --- Final Aesthetics ---
         ax1.set_aspect("equal")
         ax1.set_facecolor("white")
@@ -546,10 +486,15 @@ class Gplot:
         )
 
         plt.tight_layout()
+        if out_file:
+            # Si el usuario pasó un nombre de archivo, guardamos antes de mostrar
+            # (ya que show() a veces limpia la figura según el backend)
+            plt.savefig(out_file, dpi=300, bbox_inches="tight")
+            print(f"Map saved to {out_file}")
         plt.show()
-        plt.close("all")
-        gc.collect()
-
+        # plt.close("all")
+        self._sealevel = None
+        # gc.collect()
 
     def zsurf(self):
         """
