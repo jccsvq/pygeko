@@ -27,7 +27,7 @@ def main():
     # The next line ensures that Z is within the same order of magnitude as X and Y. 
     # This improves the conditioning of the Kriging matrix, which is vital on 
     # limited hardware like the RPi 5.
-    kd.Z /= 60.0  # Normalized for numerical stability
+    kd.normalize()
 
     # 2. Configure Kriging Parameters
     # nork=1 (Linear Drift), nvec=20 (Local neighbors)
@@ -63,8 +63,37 @@ def main():
     gc.collect()
 
     # Let us see the result
+    print("Visualization: contourd()")
     gp = Gplot("MtStHelens5000_1_20_mod_13")
+    print("Close plot window to continue...")
     gp.contourd()
+    
+    print("Visualization: topo()")
+    # Cosmetic scaling to make the variables to look more like a real map in meters.
+    # (the original values were extracted from a PNG DEM using png2csv).
+    print("Changing to geographical coordinates")
+    gp.Z = 0.03666 * gp.Z + 224.7
+    gp.X *= 16.91
+    gp.Y = 1.691 * (10000.0 - 10.0 * gp.Y)
+
+    # Change the title
+    print("Changing the map title")
+    gp.title = "Mount St. Helens, WA"
+
+    # Go to map!
+    print("Close plot window to finish")
+    gp.topo(
+        0,
+        0,
+        2600,
+        40,
+        200,
+        color="k",
+        north_angle=0,
+        hillshade=0,
+        out_file="msh-topo.svg",
+    )
+
 
 if __name__ == "__main__":
     main()

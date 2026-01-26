@@ -1214,6 +1214,7 @@ You can also save the surface es a `html` file:
 
 Please see the options for {meth}`.save_zsurf <.save_zsurf>`
 
+(#topo-target)=
 ### Topo
 
 If you prefer topographic maps with clean contour lines, use the `.topo` method; it has several options that will allow you to plot from simple monochrome maps (`modeHB=False`) to combined hypsometric/bathymetric maps (`modeHB=True`), with hillshading if desired. For instance, the following script:
@@ -1464,6 +1465,8 @@ Several test programs have been included to verify that everything is working on
 
 
 ### `msh_workflow`
+
+Complete workflow up to the plotting of the [topographic map above](#topo-target).
 
 ```{literalinclude} ../../../src/pygeko/examples/msh_workflow.py
 :language: python
