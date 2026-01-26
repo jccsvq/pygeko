@@ -35,6 +35,7 @@ Designed for efficiency, pyGEKO runs seamlessly on high-end x86 workstations and
    `Click here to open the Interactive 3D Model (13 MB WebGL) <https://jccsvq.github.io/pygeko/docs/web_models/msh_3d_500.html>`_
 
 * **🛠️ Battle-Tested Algorithms:** Implements Generalized Increment Kriging (GIK) and KD-Tree spatial indexing for rapid neighborhood search.
+* **🛠️ Optional transparent data normalization** to improve numerical stability.
 * **📦 GIS Ready:** Exports results directly to standard ``.grd`` and ``.hdr`` formats compatible with Surfer, QGIS, and other geospatial tools.
 
 📊 Performance Benchmark

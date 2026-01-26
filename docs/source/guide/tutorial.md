@@ -40,7 +40,7 @@ kd.dframe["Z"] /= 60.0  # Scale elevation to a manageable range
 * **Isotropy Caution:** When scaling  and , always use the **same scaling factor for both axes** (homothetic scaling) to preserve the geographic distance relationships between neighbors.
 
 > [!NOTE]
-> **Future Roadmap:** An automated `.normalize()` method is planned for a future release (v0.9.1+). This will handle the scaling internally, store the parameters, and automatically de-normalize the results for plotting and exporting, making this manual step obsolete.
+> `Kdata` now has an automated `.normalize()` see [below](#normalization-target). This will handle the scaling internally, store the parameters, and automatically de-normalize the results for plotting and exporting, making this manual step obsolete.
 
 
 
@@ -125,7 +125,8 @@ so we write:
 ```bash
 --> kd = Kdata(montebea)  # object creation
 --> kd                    # object inspection
-<pyGEKO.Kdata | source: 'montebea.csv' | points: 87 | mapping: [X, Y, Z] | nvec: 12, nork: 1>
+<pyGEKO.Kdata | source: 'montebea.csv' | Status: Raw (Original units)
+ points: 87 | mapping: [X, Y, Z] | nvec: 12, nork: 1>
 -->
 ```
 
@@ -133,8 +134,9 @@ Let's explore our object:
 
 ```bash
 --> kd.status
-
 Data properties:
+Data is not normalized.
+
               id       heigth     easting     northing
 count  87.000000    87.000000   87.000000    87.000000
 mean   44.000000  1455.034483  529.977011   721.977011
@@ -154,7 +156,7 @@ z_col: Z
 Scale: None
 
 
--->
+--> 
 ```
 
 Our X, Y, and Z data are contained in the `easting`, `northing`, and `height` columns. Let's heed the alert received and inform `Kdata` that we wish to use these columns in our problem:
@@ -178,6 +180,8 @@ Let'us explore again:
 --> kd.status
 
 Data properties:
+Data is not normalized.
+
               id       heigth     easting     northing
 count  87.000000    87.000000   87.000000    87.000000
 mean   44.000000  1455.034483  529.977011   721.977011
@@ -197,7 +201,7 @@ z_col: heigth
 Scale: None
 
 
---> 
+-->  
 ```
 
 We have adapted `x_col`, `y_col` and `z_col` to our problem, but there are two other default values ​​mentioned above: `nork` and `nvec`
@@ -335,6 +339,8 @@ Once you close the image, let'us explore again our object:
 --> kd.status
 
 Data properties:
+Data is not normalized.
+
               id       heigth     easting     northing
 count  87.000000    87.000000   87.000000    87.000000
 mean   44.000000  1455.034483  529.977011   721.977011
@@ -419,6 +425,8 @@ Let'us explore `kd2`:
 --> kd2.status
 
 Data properties:
+Data is not normalized.
+
               id       heigth     easting     northing
 count  87.000000    87.000000   87.000000    87.000000
 mean   44.000000  1455.034483  529.977011   721.977011
@@ -573,6 +581,8 @@ Use exit() or Ctrl-D (i.e. EOF) to exit.
 --> kd.status
 
 Data properties:
+Data is not normalized.
+
                  X           Y             Z
 count  5000.000000  5000.00000   5000.000000
 mean    506.529200   511.33540  19371.774800
@@ -606,6 +616,8 @@ This time, we don't need to adjust the column names since the dataset contains e
 --> kd.status
 
 Data properties:
+Data is not normalized.
+
                  X           Y            Z
 count  5000.000000  5000.00000  5000.000000
 mean    506.529200   511.33540   322.862913
@@ -793,6 +805,54 @@ which tells us that the best combination of parameters is `nork = 1` and `nvec =
 
 Once we have analyzed or tuned into a problem, the moment of truth arrives: kriging.
 
+(normalization-target)=
+### Normalization
+
+If your X, Y, X' data is distributed across disparate orders of magnitude (like that of Mt. St. Helens above) or contains very large (UTM coordinates) or very small numbers, instead of proceeding with manual normalization as seen in the examples, you can simply invoke the `.normalize()` method of your `Kdata` object. Once this is done, you can almost forget that your data is normalized; `pyGEKO` will take note of the normalized state of the data in various places and act accordingly.
+
+```bash
+
+--> # read data from csv file
+--> kd = Kdata(montebea)                      
+--> #  defining parameters
+--> kd.x_col = "easting"    # which column of the dataset to use as X
+--> kd.y_col = "northing"   # which column of the dataset to use as Y
+--> kd.z_col = "heigth"     # which column of the dataset to use as Z
+--> 
+--> # Normalization
+--> kd.normalize()
+--> kd.status
+
+Data properties:
+Data is normalized.
+  Offsets:  x:34.0, y:42.0, z:800.0
+  Scales:   xy_scale:0.7418, z_scale:0.8130
+
+              id       heigth     easting     northing
+count  87.000000    87.000000   87.000000    87.000000
+mean   44.000000   532.548360  367.935468   504.433985
+std    25.258662   216.304279  213.219463   304.870158
+min     1.000000     0.000000    0.000000     0.000000
+25%    22.500000   382.926829  193.249258   244.807122
+50%    44.000000   569.105691  374.629080   474.777448
+75%    65.500000   663.414634  549.703264   784.124629
+max    87.000000  1000.000000  710.682493  1000.000000
+
+Setting:
+x_col: easting
+y_col: northing
+z_col: heigth
+ nork: 1
+ nvec: 12
+Scale: None
+
+
+--> 
+--> # Proceed with the usual workflow
+--> kd.analyze(preview=True)
+...
+```
+
 ## `Kgrid` use
 
 The `Kgrid` class handles surface kriging over a rectangular area.
@@ -810,6 +870,8 @@ Creating a `Kgrid` object requires the following input parameters:
 * The grid resolution.
   - `bins`, number of X values to use.
   - `hist`, number of Y values to use.
+
+> If you used `.normalize()` with your `Kdata` object, it doesn't matter. You should always enter the estimation window in its original (raw, unnormalized) coordinates; `pyGEKO` will do the work of translating them.
 
 ### Basic workflow
 
@@ -835,6 +897,8 @@ Use exit() or Ctrl-D (i.e. EOF) to exit.
 --> kd.status
 
 Data properties:
+Data is not normalized.
+
               id       heigth     easting     northing
 count  87.000000    87.000000   87.000000    87.000000
 mean   44.000000  1455.034483  529.977011   721.977011
@@ -964,6 +1028,8 @@ These are also parallelized calculations, and the results above are for the i7. 
 Kriging: 100%|████████████████████████████████| 700/700 [00:46<00:00, 14.98it/s]
 ```
 
+>If you used `.normalize()` with your `Kdata` object, it doesn't matter. You get the grid in its original coordinates; `pyGEKO` will automatically denormalize them for you.
+
 ```bash
 $ ls *.grd *hdr
 montebea_1_14_mod_20.grd  montebea_1_14_mod_20.hdr
@@ -972,23 +1038,24 @@ montebea_1_14_mod_20.grd  montebea_1_14_mod_20.hdr
 ```bash
 $ cat montebea_1_14_mod_20.hdr 
 type: GRID
+creator: pyGEKO v0.9.1.dev0
 file: montebea.csv
 x_col: easting
 y_col: northing
 z_col: heigth
 ntot: 87
 nork: 1
-nvec: 14
+nvec: 12
 model: 20
-zk: [ 9.25957322e-16 -1.24760438e+03  1.94534241e-02  0.00000000e+00
- -9.32819591e+00]
+zk: [-2.94732273e-15 -1.77721145e+03  3.98060854e-02  0.00000000e+00
+ -1.59646843e+01]
 xmin: 0
 xmax: 1000
 ymin: 0
 ymax: 1400
 bins: 500
 hist: 700
-date: 2026-01-08 06:24:18.153823
+date: 2026-01-26 06:00:52.209264
 ```
 
 ### Hard test
@@ -1146,6 +1213,97 @@ You can also save the surface es a `html` file:
 [Click here to open a 500x500 grid interactive 3D model (13 MB WebGL)](https://jccsvq.github.io/pygeko/docs/web_models/msh_3d_500.html)
 
 Please see the options for {meth}`.save_zsurf <.save_zsurf>`
+
+### Topo
+
+If you prefer topographic maps with clean contour lines, use the `.topo` method; it has several options that will allow you to plot from simple monochrome maps (`modeHB=False`) to combined hypsometric/bathymetric maps (`modeHB=True`), with hillshading if desired. For instance, the following script:
+
+```python
+from pygeko import Gplot
+
+
+def main():
+    """Entry point"""
+    # Read a grid (It is assumed to exist in the working directory)
+    gp = Gplot("msh5000_1_20_mod_13")
+
+    # Cosmetic scaling to make the variables to look more like a real map in meters.
+    # (the original values were extracted from a PNG DEM using png2csv).
+    gp.Z = 0.03666 * gp.Z + 224.7
+    gp.X *= 16.91
+    gp.Y = 1.691 * (10000.0 - 10.0 * gp.Y) # Invert N <-> S !
+
+    # Change the title
+    gp.title = "Mount St. Helens, WA"
+
+    # Go to map!
+    gp.topo(
+        0,               # Mode "HB" off
+        0,
+        2600,
+        40,
+        200,
+        color="k",       # Black, try color="sienna" instead
+        north_angle=0,
+        hillshade=0,
+        out_file="msh-topo.png",
+    )
+
+
+if __name__ == "__main__":
+    main()
+```
+
+will draw:
+
+![msh-topo.png](../_static/msh-topo.png)
+
+while the following one:
+
+```python
+from pygeko import Gplot
+
+
+def main():
+    """Entry point"""
+    # Read a grid (It is assumed to exist in the working directory)
+    gp = Gplot("ilinc5000_1_24_mod_13")
+
+    # Customize raw values to look as cartographic values
+    gp.Z = (gp.Z) / 47.500
+    gp.X = 45 * gp.X
+    gp.Y = 45 * gp.Y
+
+    # Change the title
+    gp.title = "Verne's Misterious Island"
+    
+    # Combined hypsometric/bathymetric map
+    gp.topo(
+        1,               # Mode "HB" on
+        -300,
+        None,
+        10,
+        50,
+        north_angle=0,
+        color="red",     # Scalebar and northarrow color
+        sealevel=96,
+        hillshade=True,
+        azimuth=225,
+        out_file="imist-topoHB.png",
+    )
+
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+will draw:
+
+![imist-topoHB.png](../_static/imist-topoHB.png)
+
+Please see the options for {meth}`.topo <.topo>`
 
 ## CLI utilities
 

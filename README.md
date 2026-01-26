@@ -213,6 +213,8 @@ Use exit() or Ctrl-D (i.e. EOF) to exit.
 * `.hdr`: Human-readable header file with model performance metrics.
 * `.html`: WebGL HTML file with surface models.
 
+High-quality combined topographic and hypsometric/bathymetric maps can also be generated and exported to various graphic formats (`.pdf`, `.svg`, `.png`, etc.).
+
 ## 📄 License
 
 `pyGEKO` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
