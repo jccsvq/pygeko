@@ -10,6 +10,9 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from matplotlib import cm  # noqa: F401
+from datetime import datetime
+
+from pygeko.utils import calc_res
 
 
 def set_xy_axes_equal_3d(ax: plt.Axes):
@@ -50,7 +53,7 @@ class Gplot:
         :param fnamebase: `grd` and `hdr` filename base
         :type fnamebase: str
         """
-        self.title = os.path.basename(fnamebase)
+        self.title = self.grd_file = os.path.basename(fnamebase)
 
         # Load grid data
         self.grid_df = pd.read_csv(fnamebase + ".grd", comment="#")
@@ -77,6 +80,7 @@ class Gplot:
         self.Z = self.grid_df["Z_ESTIM"].values.reshape(self.ny, self.nx)
         self.E = self.grid_df["SIGMA"].values.reshape(self.ny, self.nx)
         self._sealevel = None
+        self.calib_dic = None
 
     @property
     def metadata(self):
@@ -300,6 +304,10 @@ class Gplot:
         :param out_file: output file name, defaults to None
         :type out_file: str, optional
         """
+        # 0. Capture the input arguments immediately
+        params = locals().copy()
+        params.pop("self", None)
+
         # 1. --- INITIAL SETUP ---
         color_land, color_sea = ("sienna", "royalblue") if modeHB else (color, color)
         self._sealevel = sealevel  # for format_coord
@@ -486,11 +494,36 @@ class Gplot:
         )
 
         plt.tight_layout()
+
+        # Save map to disk
         if out_file:
-            # Si el usuario pasó un nombre de archivo, guardamos antes de mostrar
-            # (ya que show() a veces limpia la figura según el backend)
             plt.savefig(out_file, dpi=300, bbox_inches="tight")
             print(f"Map saved to {out_file}")
+            # Write map metadata
+            base_name = out_file.rsplit(".", 1)[0]
+            sidecar_name = f"{base_name}_meta.txt"
+            with open(sidecar_name, "w") as f:
+                f.write(
+                    f"pyGEKO Map Metadata - {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
+                )
+                f.write("-" * 50 + "\n")
+                f.write(f"Title:        {self.title}\n")
+                # Add the parameters passed when calling topo()
+                for key, value in params.items():
+                    # Avoid putting the out_file in its own report
+                    if key != "out_file" and value is not None:
+                        f.write(f"{key.capitalize()}: {value}\n")
+                f.write("-" * 50 + "\n")
+                f.write("Grid metadata:\n")
+                f.write(f"Grid file: {self.grd_file}\n")
+                for _ in self._meta:
+                    f.write("    " + _ + "=" + self._meta[_] + "\n")
+                if self.calib_dic is not None:
+                    f.write("-" * 50 + "\n")
+                    f.write("Calibration metadata:\n")
+                    for _ in self.calib_dic:
+                        f.write("    " + _ + "=" + str(self.calib_dic[_]) + "\n")
+            print(f"Map sidecar '{sidecar_name}' saved.")
         plt.show()
         # plt.close("all")
         self._sealevel = None
@@ -744,3 +777,50 @@ class Gplot:
             f"Grid Shape: {shape} | "
             f"Source: '{self.title}'>"
         )
+
+    def calibrate(
+        self,
+        hmax: float,
+        hmin: float,
+        lat: float,
+        zoom: float,
+        invertY: bool = False,
+    ):
+        """
+        Grid calibration if it was obtained from csv data from `png2csv` that were not previously calibrated.
+
+        :param hmax: Maximun elevation
+        :type hmax: float
+        :param hmin: Minimum elevation  
+        :type hmin: float
+        :param lat: latitude of the grid center
+        :type lat: float
+        :param zoom: zoom level of the grid
+        :type zoom: float
+        :param invertY: Invert Y axis, defaults to False
+        :type invertY: bool, optional
+        """    
+        res = calc_res(
+            lat,
+            zoom,
+        )
+
+        self.X = self.X * res
+        self.Y = self.Y * res
+        if invertY:
+            self.Y = self.Y.max() - self.Y
+
+        z_max_val = np.nanmax(self.Z)
+        depth = 2**16 if z_max_val > 255 else 255
+
+        self.Z = ((hmax - hmin) / depth) * self.Z + hmin
+        self.E = ((hmax - hmin) / depth) * self.E
+        self.calib_dic = {
+            "hmin": hmin,
+            "hmax": hmax,
+            "depth": depth,
+            "res": float(res),
+            "invertY": invertY,
+            "lat": lat,
+            "zoom": zoom,
+        }

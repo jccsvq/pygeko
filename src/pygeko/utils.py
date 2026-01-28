@@ -696,7 +696,7 @@ def export_grid(
     print(f"Export completed. Now writing metadata to {filename2}...")
     with open(filename2, "w") as f:
         f.write("type: GRID\n")
-        f.write(f"creator: pyGEKO v{pygeko_version}\n")
+        f.write(f"creator: pyGEKO v{pygeko_version} ({mode_str})\n")
         f.write(f"file: {kg_obj.kdata.title}\n")
         f.write(f"x_col: {kg_obj.kdata.x_col}\n")
         f.write(f"y_col: {kg_obj.kdata.y_col}\n")
@@ -706,10 +706,16 @@ def export_grid(
         f.write(f"nvec: {kg_obj.kdata.nvec}\n")
         f.write(f"model: {kg_obj.model}\n")
         f.write(f"zk: {zk_vec}\n")
-        f.write(f"xmin: {x_min}\n")
-        f.write(f"xmax: {x_max}\n")
-        f.write(f"ymin: {y_min}\n")
-        f.write(f"ymax: {y_max}\n")
+        if kg_obj.kdata.normalized:
+            f.write(f"xmin: {x_min/p['xy_scale']+p['xmin']}\n")
+            f.write(f"xmax: {x_max/p['xy_scale']+p['xmin']}\n")
+            f.write(f"ymin: {y_min/p['xy_scale']+p['ymin']}\n")
+            f.write(f"ymax: {y_max/p['xy_scale']+p['ymin']}\n")
+        else:
+            f.write(f"xmin: {x_min}\n")
+            f.write(f"xmax: {x_max}\n")
+            f.write(f"ymin: {y_min}\n")
+            f.write(f"ymax: {y_max}\n")
         f.write(f"bins: {res_x}\n")
         f.write(f"hist: {res_y}\n")
         f.write(f"date: {datetime.datetime.now()}\n")
@@ -969,3 +975,27 @@ def get_data_path(filename: str) -> str:
 
     path = resources.files("pygeko").joinpath("testdata").joinpath(filename)
     return str(path)
+
+def calc_res(lat: float, zoom: float) -> float:
+    """
+    Calculates meters per pixel (cellsize) for Web Mercator.
+    Mercator projection is valid only between -85.05 and 85.05 degrees.
+
+    :param lat: Map center latitude (degrees)
+    :type lat: float
+    :param zoom: web zoom level
+    :type zoom: float
+    :return: meters per pixel factor
+    :rtype: float
+    """
+    # Guardrail: Mercator limits
+    if abs(lat) > 85.05:
+        raise ValueError("Latitude out of Mercator bounds (+/- 85.05°).")
+    if zoom < 0 or zoom > 23:
+        raise ValueError("Zoom level must be between 0 and 23.")
+
+    # Equatorial circumference in meters
+    C = 40075016.686
+    # Formula: S = C * cos(lat) / 2^(zoom + 8)
+    res = C * np.cos(np.radians(lat)) / (2 ** (zoom + 8))
+    return res

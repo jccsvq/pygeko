@@ -35,6 +35,15 @@ The ``Gplot`` class provides tools for rendering maps and diagnostic plots.
    :show-inheritance:
    :member-order: bysource
 
+Data Preparation
+----------------
+
+.. autoclass:: Calibrator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
 Internal Utilities
 ------------------
 
