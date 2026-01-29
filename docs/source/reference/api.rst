@@ -42,7 +42,7 @@ Data Preparation
    :members:
    :undoc-members:
    :show-inheritance:
-
+   :member-order: bysource
 
 Internal Utilities
 ------------------

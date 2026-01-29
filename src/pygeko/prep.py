@@ -107,7 +107,7 @@ class Calibrator:
         print(f"[OK] Saved: {filename + '.csv'} and sidecar {filename + '.txt'}")
 
 
-class GRIGcalibrater(Calibrator):
+class GRIDcalibrater(Calibrator):
     """"""
 
     def __init__(self, dframe, hmax, hmin, lat, zoom):

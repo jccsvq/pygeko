@@ -1,9 +1,9 @@
 # TODO
 
 ## Scientific Core (The Math)
-* [ ] Optional data normalization (homothetic scaling) for numerical stability.
+* [X] Optional data normalization (homothetic scaling) for numerical stability.
 * [ ] Class `Kline` and `Lplot` (Linear kriging & profiling).
-* [ ] Improved Kriging error variance estimation.
+* [ ] Alternative methods for selecting nearest neighbors.
 
 ## IO & Interoperability
 * [ ] Export to GeoTIFF (GIS compatibility).

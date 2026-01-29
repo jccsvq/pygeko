@@ -1214,7 +1214,7 @@ You can also save the surface es a `html` file:
 
 Please see the options for {meth}`.save_zsurf <.save_zsurf>`
 
-(#topo-target)=
+(topo-target)=
 ### Topo
 
 If you prefer topographic maps with clean contour lines, use the `.topo` method; it has several options that will allow you to plot from simple monochrome maps (`modeHB=False`) to combined hypsometric/bathymetric maps (`modeHB=True`), with hillshading if desired. For instance, the following script:
@@ -1257,6 +1257,7 @@ if __name__ == "__main__":
 
 will draw:
 
+(msh-topo.png)=
 ![msh-topo.png](../_static/msh-topo.png)
 
 while the following one:
@@ -1304,7 +1305,169 @@ will draw:
 
 ![imist-topoHB.png](../_static/imist-topoHB.png)
 
+> These examples show how it is possible to modify the grid as needed before its graphical representation (see also the [.calibrate()](#calibrate-target) method)
+
 Please see the options for {meth}`.topo <.topo>`
+
+(calibrate-target)=
+### Grid calibration
+
+The `.calibrate()` method allows for last-minute topographic calibration of a grid obtained from data derived from the use of the [`png2csv`](#png2csv-utility) utility and that has not been previously calibrated. (see `Calibrator` [below](#calibrator-class)). 
+
+For example, the `msh5000.csv` data included in this package has been obtained from Heightmapper at the URL:
+
+`https://tangrams.github.io/heightmapper/#12.6667/46.1947/-122.1721`
+
+which indicates a zoom factor of 12.6667, a latitude of 46.1947, and a longitude of -122.1721. therefore, the resolution in X and Y is
+
+$$ 
+S = C \cdot \frac{\cos(lat)}{2^{(zoom + 8)}} = 16.6619 \,\,\,\text{meters/pixel}
+$$
+
+where $ C = 40075016.686 $ is the Earth's equatorial circumference in meters. If we note the maximum and minimum values of elevation present in our PNG:
+$H_{max}=2524\,\,\,\text{m}$, $H_{min}=617\,\,\,\text{m}$, then the values for $X$, $Y$ and $Z$ are changed to:
+
+
+$$ \begin{align*}
+X &= S\cdot X \\
+Y &= S\cdot Y \\
+Z &= \frac{(H_{max}-H_{min})}{ D } \cdot Z + H_{min}
+\\
+\end{align*}$$
+
+where $D$  is the depth of the PNG ($65536$ if $\max(Z) > 256$ or $256$ otherwise.
+
+The following script:
+
+```python
+from pygeko import Gplot
+
+
+def main():
+    """"""
+    # Read a grid (It is assumed to exist in the working directory)
+    gp = Gplot("msh5000_1_20_mod_13")
+
+    # Grid calibration.
+    gp.calibrate(2524.0, 617.0, 46.1947, 12.667, invertY=True)
+
+    # Change the map title
+    gp.title = "Mount St. Helens, WA"
+
+    # Go to map!
+    gp.topo(
+        0,
+        0,
+        2600,
+        40,
+        200,
+        color="k",
+        north_angle=0,
+        hillshade=0,
+        out_file="msh-topo.svg",
+    )
+
+
+if __name__ == "__main__":
+    main()
+```
+
+It will draw exactly the same topographic map of Mt. St. Helens shown [above](#msh-topo.png). The sidecar file `msh-topo_meta.txt` will collect the complete history of your map:
+
+```bash
+$ cat msh-topo_meta.txt 
+pyGEKO Map Metadata - 2026-01-28 07:57
+--------------------------------------------------
+Title:        Mount St. Helens, WA
+Modehb: 0
+V_min: 0
+V_max: 2600
+Step_thin: 40
+Step_thick: 200
+Color: k
+Show_scale: True
+North_angle: 0
+Sealevel: 0.0
+Hillshade: 0
+Azimuth: 315.0
+Alt: 45.0
+--------------------------------------------------
+Grid metadata:
+Grid file: msh5000_1_20_mod_13
+    type=GRID
+    creator=pyGEKO v1.0.0.dev0
+    file=msh5000.csv
+    x_col=X
+    y_col=Y
+    z_col=Z
+    ntot=5000
+    nork=1
+    nvec=20
+    model=13
+    zk=[0.         0.         0.00230578 0.         0.83384581]
+    xmin=0.0
+    xmax=976.5625
+    ymin=0.0
+    ymax=976.5625
+    bins=500
+    hist=500
+    date=2026-01-26 09:05:22.576085
+--------------------------------------------------
+Calibration metadata:
+    hmin=617.0
+    hmax=2524.0
+    depth=65536
+    res=16.661903698397662
+    invertY=True
+    lat=46.1947
+    zoom=12.667
+```
+
+Please see the options for {meth}`.calibrate <.calibrate>`
+
+(calibrator-class)=
+## `Calibrator` use
+
+This is a specialized class to perform the same [above](#calibrate-target) calibration as a preprocessing step for `.csv` data files.
+
+```python
+from pygeko.prep import Calibrator
+
+cal = Calibrator("msh5000.csv")
+cal.calibZ(2524,617)
+cal.calibXY(46.1947, 12.667)
+cal.save("msh5000cal")
+```
+
+or, directly from the command line interpreter `pygeko`:
+
+```python
+
+--> cal = Calibrator("msh5000.csv")
+--> cal.status            # Use this to check the status
+--> cal.calibZ(2524,617)
+--> cal.status
+--> cal.calibXY(46.1947, 12.667)
+--> cal.status
+--> cal.save("msh5000cal")
+```
+
+This will write the calibrated file `msh5000cal.csv` and the sidecar file `msh5000cal.txt` will collect the parameters of your calibration:
+
+
+```bash
+$ cat msh5000cal.txt 
+ --- Calibration parameters --- 
+================================
+Source: msh5000.csv
+  Latitude: 46.1947 (deg)
+  Zoom: #12.667
+  Hmax: 2524 (m)
+  Hmin: 617 (m)
+  Res: 16.661903698397662 (m/px)
+```
+
+
 
 ## CLI utilities
 
@@ -1351,6 +1514,8 @@ options:
 
 ```
 
+(png2csv-utility)=
+###
 ### `png2csv` Utility
 
 This utility allows you to read a 16-bit PNG heightmap, extract $N$ random points, and export them to a CSV file. It was originally designed to generate the package's test datasets from a Mount St. Helens DEM. Due to copyright restrictions on the original volcanic data, we provide an alternative: the Lincoln Island DEM. This is a fictional model of the island from Jules Verne’s *The Mysterious Island*, created by the author as a heightmap for Blender. It serves as a perfect playground for testing interpolation and grid estimation and has also been used during the development of this package. Download Sample PNG: [Lincoln_Island_DEM.png](https://github.com/jccsvq/pygeko/releases/download/v0.9.0rc1/lincoln_island_dem_16bit.png)
@@ -1370,7 +1535,7 @@ This utility allows you to read a 16-bit PNG heightmap, extract $N$ random point
   <i>Interactive 3D model vs. Blender render on Raspberry Pi 5 desktop.</i>
 </p>
 
-You can obtain real DEMs using [Tangrams Heightmapper](https://github.com/tangrams/heightmapper)
+You can obtain real DEMs using [Tangrams Heightmapper](https://github.com/tangrams/heightmapper). See [Calibrator](#calibrator-class) and [Gplot.calibrate()](#calibrate-target) above for ways to calibrate your data.
 
 >Make sure the image is 16-bit grayscale. If in doubt, use any transformation utility such as [`convert`](https://imagemagick.org/script/convert.php#gsc.tab=0) from [`ImageMagik`](https://imagemagick.org/#gsc.tab=0).
 
