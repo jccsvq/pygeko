@@ -12,7 +12,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from matplotlib import cm
+
+# from matplotlib import cm
 from scipy.spatial import KDTree
 from tqdm import tqdm
 
@@ -29,6 +30,8 @@ from pygeko.utils import (
     run_full_exploration,
     run_gik,
 )
+
+plt.rcParams["savefig.directory"] = os.getcwd()
 
 
 class Kdata:
@@ -402,14 +405,16 @@ class Kdata:
         plt.close("all")
         gc.collect()
 
-    def trisurf(self, factor=1):
-        """
-        Plot objet data as 3D surface
+    def trisurf(self, cmap: str = "blues"):
+        """Plot objet data as 3D surface
+
+        :param factor: vertical scale factor, defaults to 1
+        :type factor: float, optional
+        :param cmap: colormap name, defaults to "blues"
+        :type cmap: str, optional
         """
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-        ax.plot_trisurf(
-            self.x, self.y, self.z, vmin=self.z.min() * factor, cmap=cm.Blues
-        )
+        ax.plot_trisurf(self.x, self.y, self.z, cmap=cmap)
         # ax.set_aspect("equal", adjustable="box")
         set_xy_axes_equal_3d(ax)  # X-Y axes equal scale !
         ax.set_xlabel("X", fontsize=9, color="darkgreen")
@@ -421,6 +426,150 @@ class Kdata:
         plt.show()
         plt.close("all")
         gc.collect()
+
+    def densi(self, bins: int = 30, cmap: str = "viridis"):
+        """
+        Visualization of point density on the X-Y plane using Matplotlib.
+
+        :param bins: number of bins for the hexbin plot, defaults to 30
+        :type bins: int, optional
+        :param cmap: colormap name, defaults to "viridis"
+        :type cmap: str, optional
+        """
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        # Coordinates
+        x = self.dframe[self.x_col].values
+        y = self.dframe[self.y_col].values
+
+        # We use hexbin because it is visually superior for identifying clusters
+        # 'gridsize' controls the resolution (analogous to 'bins')
+        hb = ax.hexbin(x, y, gridsize=bins, cmap=cmap, mincnt=1, edgecolors="none")
+
+        # Add a color bar to see how many points are in each cell
+        cb = fig.colorbar(hb, ax=ax)
+        cb.set_label("Number of points")
+
+        # Optional: Add contours to exactly mimic Plotly
+        # We calculate a 2D histogram for the contour lines
+        counts, xedges, yedges = np.histogram2d(x, y, bins=bins)
+        extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+        ax.contour(counts.T, extent=extent, colors="white", alpha=0.3, linewidths=0.5)
+
+        ax.set_title(f"Point density: {self.title}", fontsize=14)
+        ax.set_xlabel(self.x_col)
+        ax.set_ylabel(self.y_col)
+
+        # Maintain the square appearance if the units are geographic
+        ax.set_aspect("equal", "datalim")
+
+        plt.tight_layout()
+        plt.show()
+
+    def hist(self, bins: int = 20):
+        """
+        Shows the statistical distribution of Z values.
+
+        :param bins: Number of bins for the histogram, defaults to 20
+        :type bins: int, optional
+        """
+        fig, ax = plt.subplots()
+        ax.hist(self.dframe[self.z_col], bins=bins, color="skyblue", edgecolor="black")
+        ax.set_title(f"Distribution of {self.z_col}")
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Frecuency")
+        plt.show()
+
+    def check_spacing(self):
+        """
+        Calculate the distance to the nearest neighbor for each point.
+        """
+        coords = self.dframe[[self.x_col, self.y_col]].values
+        tree = KDTree(coords)
+        # We are looking for the 2 closest ones (the first is the point itself, d=0)
+        dist, _ = tree.query(coords, k=2)
+        nn_dist = dist[:, 1]
+
+        fig, ax = plt.subplots()
+        ax.boxplot(nn_dist, vert=False)
+        ax.set_title("Distance to the Nearest Neighbor")
+        ax.set_xlabel("Geographical units")
+        plt.show()
+        print(
+            f"Mean distance: {nn_dist.mean():.2f} | Median distance: {np.median(nn_dist):.2f}"
+        )
+
+    def scatter(self, color_by_z: bool = False, cmap: str = "viridis", s: float = 10):
+        """
+        Quick inspection of the location of the points.
+
+        :param color_by_z: If it is True, color the points according to their Z value.
+        :type color_by_z: bool, optional
+        :param cmap: Colormap to use if color_by_z is True.
+        :type cmap: str, optional
+        :param s: Point size.
+        :type s: float, optional
+        """
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        if color_by_z:
+            sc = ax.scatter(
+                self.dframe[self.x_col],
+                self.dframe[self.y_col],
+                c=self.dframe[self.z_col],
+                cmap=cmap,
+                s=s,
+                alpha=0.8,
+            )
+            fig.colorbar(sc, label=self.z_col)
+        else:
+            ax.scatter(
+                self.dframe[self.x_col],
+                self.dframe[self.y_col],
+                color="black",
+                s=s,
+                alpha=0.5,
+            )
+
+        ax.set_title(f"Sample: {self.title} ({len(self.dframe)} points)")
+        ax.set_xlabel(self.x_col)
+        ax.set_ylabel(self.y_col)
+        ax.set_aspect("equal", "datalim")
+        ax.grid(True, linestyle="--", alpha=0.3)
+
+        plt.tight_layout()
+        plt.show()
+
+    def scatter3d(self, cmap="terrain", s=15):
+        """
+        Interactive 3D visualization of the original point cloud.
+        """
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D  # Necesario para proyeccion='3d'
+
+        fig = plt.figure(figsize=(12, 8))
+        ax = fig.add_subplot(111, projection="3d")
+
+        x = self.dframe[self.x_col].values
+        y = self.dframe[self.y_col].values
+        z = self.dframe[self.z_col].values
+
+        # Scatter plot 3D
+        sc = ax.scatter(x, y, z, c=z, cmap=cmap, s=s, alpha=0.8, edgecolors="w", lw=0.5)
+
+        # Labels and style
+        ax.set_xlabel(self.x_col)
+        ax.set_ylabel(self.y_col)
+        ax.set_zlabel(self.z_col)
+        ax.set_title(f"3D View: {self.title}", fontsize=14)
+
+        # Colorbar for reference
+        fig.colorbar(sc, ax=ax, shrink=0.5, aspect=10, label=self.z_col)
+
+        # X-Y axes equal scale !
+        set_xy_axes_equal_3d(ax)
+
+        plt.show()
 
     def _execute_analysis(self, preview: bool = False, verbose: bool = True):
         """
@@ -569,8 +718,8 @@ class Kdata:
         checkpoint = joblib.load(filename)
         payload = checkpoint["payload"]
 
-        #for k, v in payload.items():
-            # Estimación aproximada del tamaño de cada objeto en bytes
+        # for k, v in payload.items():
+        # Estimación aproximada del tamaño de cada objeto en bytes
         #    import sys
         #    print(f"{k}: {sys.getsizeof(v)} bytes")
 
@@ -584,8 +733,6 @@ class Kdata:
 
         # Restore variables to the current object
         self.__dict__.update(payload)
-
-
 
         # Data normalization
         if saved_norm_params is not None:
@@ -710,7 +857,9 @@ class Kdata:
         gc.collect()
 
     def __repr__(self):
-        status = "Normalized (0-1000 range)" if self.normalized else "Raw (Original units)"
+        status = (
+            "Normalized (0-1000 range)" if self.normalized else "Raw (Original units)"
+        )
         return (
             f"<pyGEKO.Kdata | source: '{self.title}' | Status: {status}\n "
             f"points: {len(self.dframe)} | "

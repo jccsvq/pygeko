@@ -7,12 +7,17 @@ from .kdata import Kdata
 from .kgrid import Kgrid
 from .gplot import Gplot
 from .prep import Calibrator
+from .kprofile import Kprofile, Pplot
 from . import utils
 
 Kdata.__module__ = "pygeko"
 Gplot.__module__ = "pygeko"
 Kgrid.__module__ = "pygeko"
+Calibrator.__module__ = "pygeko"
+Kprofile.__module__ = "pygeko"
+Pplot.__module__ = "pygeko"
+utils.__module__ = "pygeko"
 
 
-__all__ = ["Kdata", "Gplot", "Kgrid", "Calibrator", "utils", "__version__"]
+__all__ = ["Kdata", "Gplot", "Kgrid", "Calibrator", "Kprofile", "Pplot", "utils", "__version__"]
 

@@ -11,6 +11,8 @@ from pygeko.__about__ import __version__ as VERSION
 from pygeko.gplot import Gplot  # noqa: F401
 from pygeko.kdata import Kdata  # noqa: F401
 from pygeko.kgrid import Kgrid  # noqa: F401
+from pygeko.kprofile import Kprofile  # noqa: F401
+from pygeko.kprofile import Pplot  # noqa: F401
 from pygeko.prep import Calibrator  # noqa: F401
 from pygeko.utils import get_data_path  # noqa: F401
 
@@ -19,7 +21,7 @@ from pygeko.utils import get_data_path  # noqa: F401
 message = f"""\nWelcome to pyGEKO-Kriger {VERSION}
 Generalized Covariance Kriger
     
-Classes Kdata, Kgrid, Gplot and Calibrator are imported.
+Classes Kdata, Kgrid, Gplot, etc. are imported.
 
 Use exit() or Ctrl-D (i.e. EOF) to exit.
 """
@@ -41,6 +43,9 @@ def main():
         "Kdata": Kdata,
         "Kgrid": Kgrid,
         "Gplot": Gplot,
+        "Calibrator": Calibrator,
+        "Kprofile": Kprofile,
+        "Pplot": Pplot,
         "get_data_path": get_data_path,
         "montebea": montebea,
         "msh5000": msh5000,

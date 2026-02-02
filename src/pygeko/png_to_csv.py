@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
+plt.rcParams['savefig.directory'] = os.getcwd()
 
 def generate_test_data(
     png_path: str,

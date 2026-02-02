@@ -95,10 +95,15 @@ class Kgrid:
         Print the status of the object
         """
         print(f"Data from: {self.kdata.title}")
-        print("Columns")
-        print(f"x_col = {self.kdata.x_col}")
-        print(f"y_col = {self.kdata.y_col}")
-        print(f"z_col = {self.kdata.z_col}")
+        print(f"ntot = {self.kdata.shape[0]}")
+        print("Columns:")
+        print(f"   x_col = {self.kdata.x_col}")
+        print(f"   y_col = {self.kdata.y_col}")
+        print(f"   z_col = {self.kdata.z_col}")
+        if self.kdata.normalized:
+            print("Mode: Normalized (0-1000 range)")
+        else:
+            print("Mode: Raw (Original units)")
         print("Window:")
         print(f"xmin = {self._xmin}")
         print(f"xmax = {self._xmax}")
@@ -173,14 +178,14 @@ class Kgrid:
         )
 
     def __repr__(self):
-        # Determinamos si el modelo ha sido ajustado
+        # Determine if the model has been fitted
         model_str = f"| Model: {self.model}" if self.model else "| Model: Not fitted"
         status = (
             "Normalized (0-1000 range)"
             if self.kdata.normalized
             else "Raw (Original units)"
         )
-        # Construimos una cadena informativa de varias líneas o una sola compacta
+        # Build a multi-line informational string or a single compact one
         return (
             f"<pyGEKO.Kgrid | Source: '{self.kdata.title}' | Status: {status} >\n"
             f"  Window: x[{self.xmin}, {self.xmax}], y[{self.ymin}, {self.ymax}]\n"

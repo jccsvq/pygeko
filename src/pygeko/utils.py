@@ -22,7 +22,9 @@ IS_PI = platform.machine().startswith("aarch64")
 if TYPE_CHECKING:
     from pygeko.kdata import Kdata
     from pygeko.kgrid import Kgrid
+    from pygeko.kprofile import Kprofile
 
+plt.rcParams['savefig.directory'] = os.getcwd()
 
 def _worker_tune(nork, nvec, kd_instance, verbose):
     """
@@ -96,6 +98,16 @@ def _process_row(y, xi, kd_obj, zk_vec) -> list[tuple]:
             row_results.append((x, y, z, s))
     return row_results
 
+def _process_chunk(xi_chunk, yi_chunk, kdata_obj, zk_vec):
+    """
+    Worker function to process a segment of the profile path.
+    """
+    # This should call your kriging core for each pair in zip(xi_chunk, yi_chunk)
+    results = []
+    for x, y in zip(xi_chunk, yi_chunk):
+        z, sigma = estimate_at(kdata_obj, x, y, zk_vec)
+        results.append([x, y, z, sigma])
+    return results
 
 def get_octants(ax: np.ndarray, ay: np.ndarray) -> np.ndarray:
     """Determine the octant (0 to 7) for given 2D vectors (ax, ay).
@@ -624,7 +636,7 @@ def cross_validation_silent(
 def export_grid(
     kg_obj: "Kgrid",
     zk_vec: Union[list[float], np.ndarray],
-    filename: str = "RESULTADO",
+    filename: str = "RESULT",
     res_x: int = 100,
     res_y: int = 100,
 ):
@@ -724,6 +736,80 @@ def export_grid(
 
     print(f"Completed. Data saved to {filename1}")
 
+def export_profile(
+    kp_obj: "Kprofile",
+    zk_vec: np.ndarray,
+    filename: str = "PROFILE",
+):
+    """
+    Generate a profile and export it to a CSV file (X, Y, Z, Sigma). 
+    """
+    from pygeko.__about__ import __version__ as pygeko_version
+
+    filename1 = filename + ".prf"
+    filename2 = filename + ".hdr"
+    
+    # In a profile, we don't have rows/cols like a grid, but a single vector of points.
+    # To reuse _process_row (which expects a vector of X for a single Y), 
+    # we can pass our path points as a single "row".
+    print(f"Exporting profile ({len(kp_obj._x)} points) in parallel to {filename1}...")
+
+    # For a profile, we can split the path into chunks to use multiple cores
+    num_workers = get_optimal_workers()
+    # Split indices for the workers
+    indices = np.array_split(np.arange(len(kp_obj._x)), num_workers)
+    
+    chunk_x = [kp_obj._x[idx] for idx in indices]
+    chunk_y = [kp_obj._y[idx] for idx in indices]
+
+    all_results = []
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        # We reuse _process_row by treating each chunk as a 'row'
+        # Note: _process_row needs to handle cases where Y is also a vector 
+        # or we can wrap it to process zip(x, y)
+        results_generator = list(tqdm(
+            executor.map(_process_chunk, chunk_x, chunk_y, [kp_obj.kdata]*num_workers, [zk_vec]*num_workers),
+            total=num_workers,
+            desc="Kriging Profile"
+        ))
+        
+        all_results = [item for sublist in results_generator for item in sublist]
+
+    results_array = np.array(all_results)
+
+    # Denormalization (Exact copy of export_grid logic)
+    if kp_obj.kdata.normalized:
+        p = kp_obj.kdata._norm_params
+        results_array[:, 0] = (results_array[:, 0] / p["xy_scale"]) + p["xmin"]
+        results_array[:, 1] = (results_array[:, 1] / p["xy_scale"]) + p["ymin"]
+        results_array[:, 2] = (results_array[:, 2] / p["z_scale"]) + p["zmin"]
+        results_array[:, 3] = (results_array[:, 3] / p["z_scale"])
+
+    # Save CSV (.prf)
+    mode_str = "Normalized Mode" if kp_obj.kdata.normalized else "Raw Mode"
+    header = f"# Generated with pyGEKO {pygeko_version} ({mode_str})\nX,Y,Z_ESTIM,SIGMA"
+    np.savetxt(filename1, results_array, delimiter=",", header=header, comments="", fmt="%.3f,%.3f,%.4f,%.4f")
+
+    # Save Metadata (.hdr)
+    print(f"Export completed. Writing metadata to {filename2}...")
+    with open(filename2, "w") as f:
+        f.write("type: PROFILE\n") # This is the key change
+        f.write(f"creator: pyGEKO v{pygeko_version} ({mode_str})\n")
+        f.write(f"file: {kp_obj.kdata.title}\n")
+        f.write(f"x_col: {kp_obj.kdata.x_col}\n")
+        f.write(f"y_col: {kp_obj.kdata.y_col}\n")
+        f.write(f"z_col: {kp_obj.kdata.z_col}\n")
+        f.write(f"ntot: {kp_obj.kdata.shape[0]}\n")
+        f.write(f"vertices: {kp_obj._vertices}\n")
+        f.write(f"nork: {kp_obj.kdata.nork}\n")
+        f.write(f"nvec: {kp_obj.kdata.nvec}\n")
+        f.write(f"model: {kp_obj.model}\n")
+        f.write(f"zk: {zk_vec.tolist()}\n")
+        f.write(f"n_points: {len(kp_obj._x)}\n")
+        f.write(f"total_length: {kp_obj._total_length}\n")
+        f.write(f"date: {datetime.datetime.now()}\n")
+
+    print(f"Completed. Data saved to {filename1}")
 
 def run_gik(kd_obj: "Kdata", verbose) -> Tuple[np.ndarray, np.ndarray]:
     """Generate the generalized increment database

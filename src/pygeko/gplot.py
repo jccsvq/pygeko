@@ -13,7 +13,9 @@ from matplotlib import cm  # noqa: F401
 from datetime import datetime
 
 from pygeko.utils import calc_res
+from pygeko.kprofile import ProfilePicker
 
+plt.rcParams['savefig.directory'] = os.getcwd()
 
 def set_xy_axes_equal_3d(ax: plt.Axes):
     """
@@ -79,6 +81,7 @@ class Gplot:
         self.Y = self.grid_df["Y"].values.reshape(self.ny, self.nx)
         self.Z = self.grid_df["Z_ESTIM"].values.reshape(self.ny, self.nx)
         self.E = self.grid_df["SIGMA"].values.reshape(self.ny, self.nx)
+        # Other
         self._sealevel = None
         self.calib_dic = None
 
@@ -272,6 +275,7 @@ class Gplot:
         azimuth: float = 315.0,
         alt: float = 45.0,
         out_file: str = None,
+        interactive: bool = False,
     ):
         """
         Plot a professional topographic map. Supports combined hypsometric/bathymetric
@@ -303,6 +307,8 @@ class Gplot:
         :type alt: float, optional
         :param out_file: output file name, defaults to None
         :type out_file: str, optional
+        :param interactive: interactive mode for profiles, defaults to False
+        :type interactive: bool, optional
         """
         # 0. Capture the input arguments immediately
         params = locals().copy()
@@ -524,7 +530,14 @@ class Gplot:
                     for _ in self.calib_dic:
                         f.write("    " + _ + "=" + str(self.calib_dic[_]) + "\n")
             print(f"Map sidecar '{sidecar_name}' saved.")
-        plt.show()
+        if interactive:
+        # Instead of plt.show(), we initialize the picker and then show
+            from .kprofile import ProfilePicker
+            ax = plt.gca()
+            self._active_picker = ProfilePicker(ax, self)
+            plt.show() # This will now block, but the picker is already active
+        else:
+            plt.show()
         # plt.close("all")
         self._sealevel = None
         # gc.collect()
@@ -546,7 +559,7 @@ class Gplot:
         ax.set_ylabel(self._meta["y_col"])
         # Force equal scaling in X-Y (limited in Matplotlib 3D, but it helps)
         ax.set_aspect("auto")
-        plt.show()
+        plt.show(block=False)
         plt.close("all")
         gc.collect()
 
@@ -808,7 +821,9 @@ class Gplot:
         self.X = self.X * res
         self.Y = self.Y * res
         if invertY:
-            self.Y = self.Y.max() - self.Y
+            #self.Y = self.Y.max() - self.Y
+            self.Z = np.flipud(self.Z)
+            self.E = np.flipud(self.E)
 
         z_max_val = np.nanmax(self.Z)
         depth = 2**16 if z_max_val > 255 else 255
@@ -824,3 +839,199 @@ class Gplot:
             "lat": lat,
             "zoom": zoom,
         }
+
+
+    def _interpolate_at(self, x: float, y: float, matrix: np.ndarray) -> float:
+            """
+            Performs bilinear interpolation on a matrix given real x, y coordinates.
+            
+            :param x: Real X coordinate
+            :param y: Real Y coordinate
+            :param matrix: The 2D array (self.Z or self.E) to sample from
+            :return: Interpolated value (float)
+            """
+            # Get grid bounds
+            x_min, x_max = self.X.min(), self.X.max()
+            y_min, y_max = self.Y.min(), self.Y.max()
+            #print(x_min, x_max, y_min, y_max)
+            
+            # Out-of-bounds protection
+            if not (x_min <= x <= x_max and y_min <= y <= y_max):
+                return np.nan
+            
+            # Convert real coordinates to fractional index positions
+            # self.nx and self.ny are the grid dimensions
+            frac_x = (x - x_min) / (x_max - x_min) * (self.nx - 1)
+            frac_y = (y - y_min) / (y_max - y_min) * (self.ny - 1)
+            
+            # Identify the 4 surrounding pixel indices
+            x0 = int(np.floor(frac_x))
+            x1 = min(x0 + 1, self.nx - 1)
+            y0 = int(np.floor(frac_y))
+            y1 = min(y0 + 1, self.ny - 1)
+            
+            # Calculate weights (distance from the floor index)
+            dx = frac_x - x0
+            dy = frac_y - y0
+            
+            # Matrix values at the 4 corners
+            # Note: matrix indexing is usually [row, col] -> [y, x]
+            v00 = matrix[y0, x0]
+            v10 = matrix[y0, x1]
+            v01 = matrix[y1, x0]
+            v11 = matrix[y1, x1]
+            
+            # Bilinear interpolation formula
+            res = (v00 * (1 - dx) * (1 - dy) +
+                v10 * dx * (1 - dy) +
+                v01 * (1 - dx) * dy +
+                v11 * dx * dy)
+            return res
+
+    def profile(self, start: tuple, end: tuple, n_points: int = 100) -> dict:
+            """
+            Extracts a topographic profile between two points.
+            
+            :param start: (x, y) starting coordinates
+            :param end: (x, y) ending coordinates
+            :param n_points: Number of sampling points along the line
+            :return: Dictionary containing distance, z, e and coordinates
+            """
+            x1, y1 = start
+            x2, y2 = end
+            
+            # Linear sampling of X and Y coordinates
+            x_pts = np.linspace(x1, x2, n_points)
+            y_pts = np.linspace(y1, y2, n_points)
+            
+            # Cumulative distance from the start point
+            distances = np.sqrt((x_pts - x1)**2 + (y_pts - y1)**2)
+            
+            z_values = []
+            e_values = []
+            
+            # Sampling Z and E (Error) from the grid
+            for px, py in zip(x_pts, y_pts):
+                z_values.append(self._interpolate_at(px, py, self.Z))
+                e_values.append(self._interpolate_at(px, py, self.E))
+                #print(f"Sampling at X={px:.1f}, Y={py:.1f}")
+                
+            return {
+                "distance": distances,
+                "z": np.array(z_values),
+                "e": np.array(e_values),
+                "x_coords": x_pts,
+                "y_coords": y_pts
+            }
+
+
+    def plot_profile(self, p_data: dict, title: str = "Z Profile"):
+            """
+            Plots the profile and displays start/end coordinates.
+            """
+            import matplotlib.pyplot as plt
+            
+            fig_name = "pyGEKO_Profile_Analysis"
+            fig = plt.figure(num=fig_name, figsize=(10, 6)) # Un poco más alto para el subtítulo
+            
+            if fig.axes:
+                ax = fig.gca()
+                ax.clear()
+            else:
+                ax = fig.add_subplot(111)
+
+            dist = p_data["distance"]
+            z = p_data["z"]
+            e = p_data["e"]
+            x_pts = p_data["x_coords"]
+            y_pts = p_data["y_coords"]
+
+            # Plot uncertainty and elevation
+            ax.fill_between(dist, z - e, z + e, color='lightblue', alpha=0.4, label='Uncertainty (±σ)')
+            ax.plot(dist, z, color='darkgreen', lw=2, label='Z')
+            
+            # Add labels and grid
+            ax.set_title(title, fontsize=14, pad=20)
+            
+            # --- NEW: DISPLAY START AND END COORDINATES ---
+            # We create a string with the start and end points
+            start_txt = f"Start: ({x_pts[0]:.1f}, {y_pts[0]:.1f})"
+            end_txt = f"End: ({x_pts[-1]:.1f}, {y_pts[-1]:.1f})"
+            
+            # We can place this as a 'suptitle' or as a text box
+            fig.suptitle(f"{start_txt}  --->  {end_txt}", fontsize=9, color='gray', y=0.92)
+            # ----------------------------------------------
+
+            ax.set_xlabel("Distance along section")
+            ax.set_ylabel("Z")
+            ax.grid(True, linestyle='--', alpha=0.6)
+            ax.legend(loc='upper right')
+            
+            plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust layout to make room for suptitle
+            fig.canvas.draw()
+            
+            try:
+                fig.canvas.manager.show()
+            except Exception as e:
+                pass
+
+    def plot_profile2(self, p_data: dict, title: str = "Z Profile"):
+            """
+            Plots the profile, reusing the window if it already exists.
+            """
+            import matplotlib.pyplot as plt
+            
+            # Use a unique window name. 
+            # If a window with this name exists, Matplotlib will switch to it.
+            fig_name = "pyGEKO_Profile_Analysis"
+            
+            # If the window exists, we get its ID; if not, it creates a new one.
+            fig = plt.figure(num=fig_name, figsize=(10, 5))
+            
+            # If the figure was already open, it will have axes. 
+            # We clear them to draw the new profile.
+            if fig.axes:
+                ax = fig.gca()
+                ax.clear()
+            else:
+                ax = fig.add_subplot(111)
+
+            dist = p_data["distance"]
+            z = p_data["z"]
+            e = p_data["e"]
+            
+            # Plotting the uncertainty and the terrain
+            ax.fill_between(dist, z - e, z + e, color='lightblue', alpha=0.4, label='Uncertainty (±σ)')
+            ax.plot(dist, z, color='darkgreen', lw=2, label='Z')
+            
+            ax.set_title(title)
+            ax.set_xlabel("Distance")
+            ax.set_ylabel("Z")
+            ax.grid(True, linestyle='--', alpha=0.7)
+            ax.legend()
+            # Add a vertical line at the peak or show min/max elevation
+            #max_z = np.max(z)
+            #max_dist = dist[np.argmax(z)]
+            #ax.annotate(f'Peak: {max_z:.1f}m', xy=(max_dist, max_z), 
+            #            xytext=(max_dist, max_z + 100),
+            #            arrowprops=dict(facecolor='black', shrink=0.05))
+            
+            # Refresh the canvas without blocking
+            fig.canvas.draw()
+            
+            # Bring to front if possible
+            try:
+                fig.canvas.manager.show()
+            except Exception as e:
+                pass
+
+    def interactive_profile(self, n_points: int = 200):
+            """
+            Enables interactive profile selection on the current active plot.
+            """
+            import matplotlib.pyplot as plt
+            
+            ax = plt.gca() # Get current axes
+            # Store the picker in an attribute to prevent garbage collection
+            self._active_picker = ProfilePicker(ax, self, n_points)
+            plt.show()
