@@ -4,24 +4,33 @@ pyGEKO Kprofile Module
 Handles profile definition and Kriging estimation.
 """
 
-# import matplotlib.pyplot as plt
 import os
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# import pygeko.kdata
+#from pygeko import Kdata, Gplot
 from pygeko.utils import calc_res, export_profile, report_models
 
 plt.rcParams['savefig.directory'] = os.getcwd()
 
 class ProfilePicker:
     """
-    Interactive tool to select two points on a Gplot map and generate a profile.
+    Internal class. Interactive tool to select two points on a Gplot map and generate a profile.
     """
 
-    def __init__(self, ax, gplot_obj, n_points=200):
+    def __init__(self, ax: plt.Axes, gplot_obj, n_points: int=200):
+        """
+        Object creator
+
+        :param ax: plt.Axes object to plot on
+        :type ax: plt.Axes
+        :param gplot_obj: Gplot object to use for the profile
+        :type gplot_obj: Gplot
+        :param n_points: Number of points for the profile, defaults to 200
+        :type n_points: int, optional
+        """        
         self.ax = ax
         self.gp = gplot_obj
         self.n_points = n_points
@@ -68,14 +77,18 @@ class Kprofile:
     """Manages profile definition and interpolation workflow using Kriging."""
 
     def __init__(self, kdata, points: list, step: float = None, n_points: int = 100):
-        """
-        Object Creator
+        """Class constructor
 
         :param kdata: Kdata object with the source points
+        :type kdata: ~pygeko.Kdata
         :param points: List of (x, y) tuples defining the polyline vertices
-        :param step: Distance between sampling points (in meters/units)
-        :param n_points: Number of points if 'step' is not provided
-        """
+        :type points: list
+        :param step: ditance between sampling points, defaults to None
+        :type step: float, optional
+        :param n_points: number of points if 'step' is not provided, defaults to 100
+        :type n_points: int, optional
+        """        
+
         from .kdata import Kdata  # Local import to avoid circular dependency
 
         assert isinstance(kdata, Kdata)
@@ -96,9 +109,18 @@ class Kprofile:
         if kdata.normalized:
             self._x, self._y, _, _ = kdata.norm_coord(self._x, self._y)
 
-    def _build_path(self, vertices, step, n_points):
+    def _build_path(self, vertices: list, step: float, n_points: int)-> tuple:
         """
         Discretizes a polyline into equidistant sampling points.
+
+        :param vertices: list of (x, y) tuples defining the polyline vertices
+        :type vertices: list
+        :param step: distance between sampling points, defaults to None
+        :type step: float
+        :param n_points: number of points if 'step' is not provided, defaults to 100
+        :type n_points: int
+        :return: tuple of (x_coords, y_coords, sampling_dists)
+        :rtype: tuple
         """
         x_coords, y_coords = zip(*vertices)
         x_coords = np.array(x_coords)
@@ -139,8 +161,12 @@ class Kprofile:
         return self._model
 
     @model.setter
-    def model(self, value):
-        """Selected model setter and logic to link with cross-validation results"""
+    def model(self, value: int):
+        """Selected model setter and logic to link with cross-validation results
+
+        :param value: number of the selected model
+        :type value: int
+        """        
         self._model = value
         # Link the chosen model from kdata cross-validation
         try:
@@ -174,10 +200,14 @@ class Kprofile:
             print(f"Model = {self.model}")
             print(f"   zk = {self.zk_final} ")
 
-    def estimate_profile(self, filename="profile"):
+    def estimate_profile(self, filename: str="profile"):
         """
         Run the profile estimation using the parent Kdata model.
-        """
+
+        :param filename: output filename base, defaults to "profile"
+        :type filename: str, optional
+        :raises ValueError: model must be set before estimation
+        """        
         if self.model is None or self.zk_final is None:
             raise ValueError("Model must be set before estimation.")
 
@@ -192,9 +222,16 @@ class Kprofile:
 class KprofileCSV(Kprofile):
     """Profile defined by an external CSV file with X, Y coordinates."""
 
-    def __init__(self, kdata, csv_path, **kwargs):
-        import pandas as pd
+    def __init__(self, kdata, csv_path: str, **kwargs):
+        """
+        Object creator
 
+        :param kdata: Kdata object
+        :type kdata: ~pygeko.Kdata
+        :param csv_path: path to the CSV file with X, Y coordinates of the profile vertices
+        :type csv_path: str
+        """        
+        
         df = pd.read_csv(csv_path)
         # Assumes CSV has columns 'X' and 'Y'
         points = list(zip(df["X"], df["Y"]))
@@ -205,7 +242,8 @@ class Pplot:
     """Profile ploting"""
 
     def __init__(self, filename: str):
-        """Object Creator
+        """
+        Object Creator
 
         :param filename: filename base of the profile
         :type filename: str
@@ -312,7 +350,19 @@ class Pplot:
             "zoom": zoom,
         }
 
-    def plot(self, show_error=True, title=None, show_flags=True, sea_level=None):
+    def plot(self, show_error: bool=True, title: str=None, show_flags: bool=True, sea_level: float=None):
+        """
+        Plots the profile with standard aesthetic and optional vertex flags.
+
+        :param show_error: show error band, defaults to True
+        :type show_error: bool, optional
+        :param title: title of the plot, defaults to None
+        :type title: str, optional
+        :param show_flags: show vertex flags, defaults to True
+        :type show_flags: bool, optional
+        :param sea_level: reference level for elevation, defaults to None
+        :type sea_level: float, optional
+        """        
         """
         Plots the profile with standard aesthetic and optional vertex flags.
         """

@@ -387,10 +387,13 @@ class Kdata:
         else:
             raise RuntimeError("KDTree not initialized!")
 
-    def plot(self):
+    def plot(self, cmap: str = "viridis"):
         """
-        2D plot of objet data
-        """
+        2D plot of objet data (tripcolor)
+
+        :param cmap: colormap name, defaults to "viridis"
+        :type cmap: str, optional
+        """        
         # Plot
         fig, ax = plt.subplots()
 
@@ -399,18 +402,17 @@ class Kdata:
         ax.set_xlabel("X", fontsize=10, color="darkgreen")
         ax.set_ylabel("Y", fontsize=10, color="darkgreen")
         ax.set_title(self.title, fontsize=12, fontweight="bold")
-        ax.tripcolor(self.x, self.y, self.z)
+        ax.tripcolor(self.x, self.y, self.z, cmap=cmap)
 
         plt.show()
         plt.close("all")
         gc.collect()
 
-    def trisurf(self, cmap: str = "blues"):
-        """Plot objet data as 3D surface
+    def trisurf(self, cmap: str = "Blues"):
+        """
+        Plot objet data as 3D surface
 
-        :param factor: vertical scale factor, defaults to 1
-        :type factor: float, optional
-        :param cmap: colormap name, defaults to "blues"
+        :param cmap: colormap name, defaults to "Blues"
         :type cmap: str, optional
         """
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
@@ -429,7 +431,7 @@ class Kdata:
 
     def densi(self, bins: int = 30, cmap: str = "viridis"):
         """
-        Visualization of point density on the X-Y plane using Matplotlib.
+        Visualization of point density on the X-Y plane.
 
         :param bins: number of bins for the hexbin plot, defaults to 30
         :type bins: int, optional
@@ -466,6 +468,10 @@ class Kdata:
         plt.tight_layout()
         plt.show()
 
+        plt.close("all")
+        gc.collect()
+
+
     def hist(self, bins: int = 20):
         """
         Shows the statistical distribution of Z values.
@@ -479,6 +485,10 @@ class Kdata:
         ax.set_xlabel("Value")
         ax.set_ylabel("Frecuency")
         plt.show()
+
+        plt.close("all")
+        gc.collect()
+
 
     def check_spacing(self):
         """
@@ -498,6 +508,10 @@ class Kdata:
         print(
             f"Mean distance: {nn_dist.mean():.2f} | Median distance: {np.median(nn_dist):.2f}"
         )
+
+        plt.close("all")
+        gc.collect()
+
 
     def scatter(self, color_by_z: bool = False, cmap: str = "viridis", s: float = 10):
         """
@@ -540,12 +554,15 @@ class Kdata:
         plt.tight_layout()
         plt.show()
 
+        plt.close("all")
+        gc.collect()
+
+
     def scatter3d(self, cmap="terrain", s=15):
         """
         Interactive 3D visualization of the original point cloud.
         """
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D  # Necesario para proyeccion='3d'
+        #from mpl_toolkits.mplot3d import Axes3D  # Necesario para proyeccion='3d'
 
         fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection="3d")
@@ -570,6 +587,10 @@ class Kdata:
         set_xy_axes_equal_3d(ax)
 
         plt.show()
+
+        plt.close("all")
+        gc.collect()
+
 
     def _execute_analysis(self, preview: bool = False, verbose: bool = True):
         """
@@ -668,10 +689,11 @@ class Kdata:
         """
         filename = f"{(self.title).split('.')[0]}_{self._nork}_{self._nvec}.gck"
 
-        # 1. Extract metadata (experiment ID)
+        # 1. Extract metadata (experiment ID, including normalization state)
         metadata = {
             "fecha_creacion": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "n_puntos": len(self.dframe) if hasattr(self, "dframe") else 0,
+            "isnorm": getattr(self, "normalized", None),
             "params": {
                 "nork": getattr(self, "nork", None),
                 "nvec": getattr(self, "nvec", None),

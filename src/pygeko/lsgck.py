@@ -22,14 +22,14 @@ def check_gck_files(directory: str = ".", verbose: bool = False):
     # Table header
     if verbose:
         header = (
-            f"{'File':<30} | {'Date':<6} | {'nork':<5} | {'nvec':<5} "
-            + f"| {'MAE':<8} | {'RMSE':<8} | {'CORR':<8} | {'Model':<10}"
+            f"{'File':<30} | {'N':<1} | {'Date':<6} | {'nork':<5} | {'nvec':<5} "
+            + f"| {'MAE':<8} | {'RMSE':<8} | {'CORR':<8} | {'Model':<6}"
         )
         print("\n" + "=" * len(header))
         print(header)
         print("-" * len(header))
     else:
-        header = f"{'File':<30} | {'Date':<6} | {'nork':<5} | {'nvec':<5} | {'MAE':<8} | {'Model':<10}"
+        header = f"{'File':<30} | {'N':<1} | {'Date':<6} | {'nork':<5} | {'nvec':<5} | {'MAE':<8} | {'Model':<6}"
         print("\n" + "=" * len(header))
         print(header)
         print("-" * len(header))
@@ -45,20 +45,30 @@ def check_gck_files(directory: str = ".", verbose: bool = False):
                 m = data["metadata"]
                 p = m.get("params", {})
                 res = m.get("metricas", {})
+                # Extract information about normalization mode
+                isn=m.get("isnorm",None)
+                if isn is None:  # Pre v1.0.0dev1 gck file case
+                    isN = '?'
+                elif isn:        # v1.0.0dev1 onwards gck file case
+                    isN = 'Y'
+                else:
+                    isN = 'N'   
+
 
                 # Format date (day and month only)
                 fecha_str = m.get("fecha_creacion", "N/D").split(" ")[0][5:]
-
+                # One alternative 
+                # mae_str = f"{res.get('MAE', 0):.4f}" if isinstance(res.get('MAE'), (int, float)) else "N/A"
                 if verbose:
                     print(
-                        f"{f:<30} | {fecha_str:<6} | {p.get('nork', '??'):<5} | {p.get('nvec', '??'):<5} "
+                        f"{f:<30} | {isN:<1} | {fecha_str:<6} | {p.get('nork', '??'):<5} | {p.get('nvec', '??'):<5} "
                         + f"| {res.get('MAE', '??'):8g} | {res.get('RMSE', '??'):8g} "
-                        + f"| {res.get('Corr', '??'):8g} | {p.get('model_id', '??'):<10}"
+                        + f"| {res.get('Corr', '??'):8g} | {p.get('model_id', '??'):<6}"
                     )
                 else:
                     print(
-                        f"{f:<30} | {fecha_str:<6} | {p.get('nork', '??'):<5} | {p.get('nvec', '??'):<5} "
-                        + f"| {res.get('MAE', '??'):8g} | {p.get('model_id', '??'):<10}"
+                        f"{f:<30} | {isN:<1} | {fecha_str:<6} | {p.get('nork', '??'):<5} | {p.get('nvec', '??'):<5} "
+                        + f"| {res.get('MAE', '??'):8g} | {p.get('model_id', '??'):<6}"
                     )
                 # found_any = True
             else:

@@ -67,6 +67,9 @@ source_suffix = {
 autodoc_default_options = {
     "private-members": True,
 }
+
+autoclass_content = 'both'
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
@@ -74,6 +77,10 @@ html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
 html_logo = "_static/pyGEKO_logo.png"
 html_favicon = "_static/favicon.png"
+
+html_theme_options = {
+    "show_toc_level": 2, # Ajusta este número (1, 2 o 3) según necesites
+}
 
 # For copybutton
 #copybutton_exclude = '--> '

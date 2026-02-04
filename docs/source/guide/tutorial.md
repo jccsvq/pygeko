@@ -89,7 +89,7 @@ X,Y,Z
 
 
 
-### Basic workflow
+### Data definition and exploration
 
 The core of `Kdata` is a [`pandas.DataFrame`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) object; in fact, all the arguments used in the creation of a `Kdata` object are passed directly to [`pandas.read_csv()`](https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html#pandas.read_csv), so that you can use all the functionality of this method to read your `CSV` files. Furthermore, `Kdata` inherits all the attributes of `pandas.DataFrame` so that you can analyze and modify your data just as you would with `pandas`. Let's proceed to create a `Kdata` object:
 
@@ -220,7 +220,19 @@ but for now we'll leave them as they are.
 
 (If you're curious why these integer variables start with "n", the answer lies in the `Fortran` used by the author in the late 1980s to code this algorithm. See the [`gck` project](https://github.com/jccsvq/gck) for more details.)
 
-We can visualize our data with two graphical previews:
+Now that we have defined our X, Y, and Z data columns, we have several graphical methods at our disposal to explore the nature of our data, confirm that they are indeed the data we want to use, or anticipate some difficulties that may arise during the analysis or in the final results.
+
+| Method | Description |
+| --- | --- |
+| {meth}`.plot <pygeko.Kdata.plot>` | Plot data points (can be color-coded by Z) |
+| {meth}`.trisurf <.trisurf>` | Linear interpolation as a 3D surface |
+| {meth}`.densi <.densi>` | Heatmap of sampling density (Hexbin) |
+| {meth}`.hist <.hist>` | Statistical distribution of the variable |
+| {meth}`.check_spacing <.check_spacing>` | Boxplot of the distance to the nearest neighbor|
+| {meth}`.scatter <.scatter>` | Quick inspection of the location of the points |
+| {meth}`.scatter3d <.scatter3d>` | Interactive 3D point cloud for outlier detection |
+
+For instance:
 
 ```bash
 --> kd.plot()
@@ -233,6 +245,8 @@ We can visualize our data with two graphical previews:
 ```
 
 ![mbtrisurf](../_static/mbtrisurf.png)
+
+
 
 
 
@@ -1215,7 +1229,9 @@ You can also save the surface es a `html` file:
 Please see the options for {meth}`.save_zsurf <.save_zsurf>`
 
 (topo-target)=
-### Topo
+### The `.topo` method
+
+
 
 If you prefer topographic maps with clean contour lines, use the `.topo` method; it has several options that will allow you to plot from simple monochrome maps (`modeHB=False`) to combined hypsometric/bathymetric maps (`modeHB=True`), with hillshading if desired. For instance, the following script:
 
@@ -1308,6 +1324,11 @@ will draw:
 > These examples show how it is possible to modify the grid as needed before its graphical representation (see also the [.calibrate()](#calibrate-target) method)
 
 Please see the options for {meth}`.topo <.topo>`
+
+(fastprofiles-target)=
+### Fast profiles
+The topo method has an `interactive` switch which, if set to `True`, allows the direct obtaining of profiles from the map.
+Once the `.topo` viewport is open, you can click on a pair of points on your map to obtain a profile of the Z variable along the line connecting the two points. The profile will be displayed in a new viewport that will remain open, waiting for you to enter new pairs of points to update the corresponding profile. These quick profiles are obtained by bilinear interpolation from the grid values. If you need more complex (polyline) or more precise profiles obtained by direct kriging, see [Kprofile](#kprofile-target).
 
 (calibrate-target)=
 ### Grid calibration
@@ -1423,7 +1444,7 @@ Calibration metadata:
     zoom=12.667
 ```
 
-Please see the options for {meth}`.calibrate <.calibrate>`
+Please see the options for {meth}`.calibrate <pygeko.Gplot.calibrate>`
 
 (calibrator-class)=
 ## `Calibrator` use
@@ -1467,7 +1488,123 @@ Source: msh5000.csv
   Res: 16.661903698397662 (m/px)
 ```
 
+(kprofile-target)=
+## `Kprofile` use
 
+`Kprofile` is the profile equivalent of `Kgrid`. The object is created using a `Kdata` object, a list of tuples containing the coordinates of the profile vertices, and the number of points to be calculated along the profile. The data normalization status is automatically taken into account. For example, the following script:
+
+```python
+"""Kprofile test"""
+
+
+from pygeko import Kdata
+from pygeko.kprofile import Kprofile
+from pygeko.utils import get_data_path
+
+# Load data
+msh_path = get_data_path("msh5000.csv")
+kd = Kdata(msh_path)  # read data from csv file
+
+# restore analysis
+kd.restore("msh5000_1_20")  # restore
+
+# Create Kprofile object
+kp = Kprofile(kd, [(0, 500), (500, 500), (1000, 1000), (1000, 500)], n_points=300)
+
+# Choose model to use
+kp.model = 13  
+
+# Proceed with estimation (kriging)
+kp.estimate_profile("0profile")
+```
+will create the the file `0profile_1_20_mod_13.prf` 
+
+```bash
+$ head 0profile_1_20_mod_13.prf 
+# Generated with pyGEKO 1.0.0.dev1 (Normalized Mode)
+X,Y,Z_ESTIM,SIGMA
+0.000,500.000,6428.8474,2.6417
+5.709,500.000,6765.8410,4.3805
+11.419,500.000,7032.9249,5.8327
+17.128,500.000,7388.4889,5.5393
+22.838,500.000,7931.7560,5.0927
+28.547,500.000,8647.8676,5.5125
+34.256,500.000,9356.1894,6.0681
+39.966,500.000,9974.8159,6.1666
+```
+
+and its header (metadata) file `0profile_1_20_mod_13.hdr`
+
+```bash
+$ cat 0profile_1_20_mod_13.hdr 
+type: PROFILE
+creator: pyGEKO v1.0.0.dev1 (Normalized Mode)
+file: msh5000.csv
+x_col: X
+y_col: Y
+z_col: Z
+ntot: 5000
+vertices: [(0, 500), (500, 500), (1000, 1000), (1000, 500)]
+nork: 1
+nvec: 20
+model: 13
+zk: [0.0, 0.0, 0.00230578222974214, 0.0, 0.8338458053689434]
+n_points: 300
+total_length: 1707.1067811865476
+date: 2026-02-03 07:18:00.745117
+``` 
+
+After this, you can use [`Pplot`](#pplot-target) for visualization.
+
+
+## `KprofileCSV` use
+
+If the baseline polyline for your profile is complex, you may prefer to write the vertices to a CSV file with the X and Y columns:
+
+```bash
+$ cat prof.csv
+X,Y
+0,500
+500,500
+1000,1000
+1000,500
+```
+
+and use:
+
+```python
+kp = KprofileCSV(kd,"prof.csv",n_points=300)
+```
+
+and proceed exactly the same as with `Kprofile`.
+
+(pplot-target)=
+## `Pplot` use
+
+`Pplot` is the profile equivalent of `Gplot`, but it is much simpler as it only has a graphical method.
+
+```python
+"""Kprofile test"""
+from pygeko.kprofile import Pplot
+
+# Create Pplot object
+pp = Pplot("0profile_1_20_mod_13")
+
+# We can calibrate our profile
+pp.calibrate(2524.0, 617.0, 46.1947, 12.667, invertY=False)
+
+# Display the profile
+pp.plot()
+```
+
+![kprofile.png](../_static/kprofile.png)
+
+Try also:
+
+```python
+pp.plot(sea_level=1000)
+```
+to stablish the sea or other level as reference.
 
 ## CLI utilities
 
