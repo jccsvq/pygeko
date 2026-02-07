@@ -9,9 +9,11 @@ The core tool to perform automated Kriging
 
 ## lsgck (Structure Analysis)
 
-Use this tool to list and analyze the available Generalized Covariance models identified in your dataset. It helps in understanding the spatial structure before running a full grid estimation.
+Use this tool to list and analyze the available Generalized Covariance models analyzed for your dataset. It helps in understanding the spatial structure before running a full grid estimation.
 
+## catgck (Structure Analysis)
 
+This tool complements the previous one by showing detailed information for each model analyzed.
 
 ## png2csv (Data Preparation)
 

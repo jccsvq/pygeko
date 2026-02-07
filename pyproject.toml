@@ -37,6 +37,7 @@ Source = "https://github.com/jccsvq/pygeko"
 
 [project.scripts]
 lsgck = "pygeko.lsgck:main"
+catgck = "pygeko.catgck:main"
 png2csv = "pygeko.png_to_csv:main"
 pygeko = "pygeko.gck_kriger:main"
 

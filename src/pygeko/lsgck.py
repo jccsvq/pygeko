@@ -8,7 +8,7 @@ import joblib
 def check_gck_files(directory: str = ".", verbose: bool = False):
     """Scan the directory for .gck files and display their contents.
 
-    :param directory: directory to scan, defaults to ".":str
+    :param directory: directory to scan, defaults to "."
     :type directory: str, optional
     :param verbose: print additional information, defaults to False
     :type verbose: bool, optional

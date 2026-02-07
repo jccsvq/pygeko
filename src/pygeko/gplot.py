@@ -15,7 +15,8 @@ from datetime import datetime
 from pygeko.utils import calc_res
 from pygeko.kprofile import ProfilePicker
 
-plt.rcParams['savefig.directory'] = os.getcwd()
+plt.rcParams["savefig.directory"] = os.getcwd()
+
 
 def set_xy_axes_equal_3d(ax: plt.Axes):
     """
@@ -531,11 +532,12 @@ class Gplot:
                         f.write("    " + _ + "=" + str(self.calib_dic[_]) + "\n")
             print(f"Map sidecar '{sidecar_name}' saved.")
         if interactive:
-        # Instead of plt.show(), we initialize the picker and then show
+            # Instead of plt.show(), we initialize the picker and then show
             from .kprofile import ProfilePicker
+
             ax = plt.gca()
             self._active_picker = ProfilePicker(ax, self)
-            plt.show() # This will now block, but the picker is already active
+            plt.show()  # This will now block, but the picker is already active
         else:
             plt.show()
         # plt.close("all")
@@ -796,6 +798,7 @@ class Gplot:
         hmax: float,
         hmin: float,
         lat: float,
+        lon: float,
         zoom: float,
         invertY: bool = False,
     ):
@@ -804,32 +807,46 @@ class Gplot:
 
         :param hmax: Maximun elevation
         :type hmax: float
-        :param hmin: Minimum elevation  
+        :param hmin: Minimum elevation
         :type hmin: float
         :param lat: latitude of the grid center
         :type lat: float
+        :param lon: longitude of the grid center
+        :type lon: float
         :param zoom: zoom level of the grid
         :type zoom: float
         :param invertY: Invert Y axis, defaults to False
         :type invertY: bool, optional
-        """    
-        res = calc_res(
-            lat,
-            zoom,
-        )
+        """
+        import math
 
+        # Terrestrial Radius (in meters)
+        R = 6378137.0
+        # Web Mercator coordinates of the center of the grid
+        center_x = R * math.radians(lon)
+        center_y = R * math.log(math.tan(math.pi / 4 + math.radians(lat) / 2))
+        # Grid resolution
+        res = calc_res(lat, zoom)
+        # Grid coordinates
         self.X = self.X * res
         self.Y = self.Y * res
         if invertY:
-            #self.Y = self.Y.max() - self.Y
+            # self.Y = self.Y.max() - self.Y
             self.Z = np.flipud(self.Z)
             self.E = np.flipud(self.E)
 
+        # Z, E calibration
         z_max_val = np.nanmax(self.Z)
         depth = 2**16 if z_max_val > 255 else 255
 
         self.Z = ((hmax - hmin) / depth) * self.Z + hmin
         self.E = ((hmax - hmin) / depth) * self.E
+
+        # Coordinates of the lower-left corner of the grid
+        xllcorner = center_x - (self.X.max() - self.X.min()) / 2
+        yllcorner = center_y - (self.Y.max() - self.Y.min()) / 2
+
+        # Grid calibration metadata
         self.calib_dic = {
             "hmin": hmin,
             "hmax": hmax,
@@ -837,201 +854,311 @@ class Gplot:
             "res": float(res),
             "invertY": invertY,
             "lat": lat,
+            "lon": lon,
             "zoom": zoom,
+            "xllcorner": float(xllcorner),
+            "yllcorner": float(yllcorner),
         }
 
-
     def _interpolate_at(self, x: float, y: float, matrix: np.ndarray) -> float:
-            """
-            Performs bilinear interpolation on a matrix given real x, y coordinates.
-            
-            :param x: Real X coordinate
-            :param y: Real Y coordinate
-            :param matrix: The 2D array (self.Z or self.E) to sample from
-            :return: Interpolated value (float)
-            """
-            # Get grid bounds
-            x_min, x_max = self.X.min(), self.X.max()
-            y_min, y_max = self.Y.min(), self.Y.max()
-            #print(x_min, x_max, y_min, y_max)
-            
-            # Out-of-bounds protection
-            if not (x_min <= x <= x_max and y_min <= y <= y_max):
-                return np.nan
-            
-            # Convert real coordinates to fractional index positions
-            # self.nx and self.ny are the grid dimensions
-            frac_x = (x - x_min) / (x_max - x_min) * (self.nx - 1)
-            frac_y = (y - y_min) / (y_max - y_min) * (self.ny - 1)
-            
-            # Identify the 4 surrounding pixel indices
-            x0 = int(np.floor(frac_x))
-            x1 = min(x0 + 1, self.nx - 1)
-            y0 = int(np.floor(frac_y))
-            y1 = min(y0 + 1, self.ny - 1)
-            
-            # Calculate weights (distance from the floor index)
-            dx = frac_x - x0
-            dy = frac_y - y0
-            
-            # Matrix values at the 4 corners
-            # Note: matrix indexing is usually [row, col] -> [y, x]
-            v00 = matrix[y0, x0]
-            v10 = matrix[y0, x1]
-            v01 = matrix[y1, x0]
-            v11 = matrix[y1, x1]
-            
-            # Bilinear interpolation formula
-            res = (v00 * (1 - dx) * (1 - dy) +
-                v10 * dx * (1 - dy) +
-                v01 * (1 - dx) * dy +
-                v11 * dx * dy)
-            return res
+        """
+        Performs bilinear interpolation on a matrix given real x, y coordinates.
+
+        :param x: Real X coordinate
+        :param y: Real Y coordinate
+        :param matrix: The 2D array (self.Z or self.E) to sample from
+        :return: Interpolated value (float)
+        """
+        # Get grid bounds
+        x_min, x_max = self.X.min(), self.X.max()
+        y_min, y_max = self.Y.min(), self.Y.max()
+        # print(x_min, x_max, y_min, y_max)
+
+        # Out-of-bounds protection
+        if not (x_min <= x <= x_max and y_min <= y <= y_max):
+            return np.nan
+
+        # Convert real coordinates to fractional index positions
+        # self.nx and self.ny are the grid dimensions
+        frac_x = (x - x_min) / (x_max - x_min) * (self.nx - 1)
+        frac_y = (y - y_min) / (y_max - y_min) * (self.ny - 1)
+
+        # Identify the 4 surrounding pixel indices
+        x0 = int(np.floor(frac_x))
+        x1 = min(x0 + 1, self.nx - 1)
+        y0 = int(np.floor(frac_y))
+        y1 = min(y0 + 1, self.ny - 1)
+
+        # Calculate weights (distance from the floor index)
+        dx = frac_x - x0
+        dy = frac_y - y0
+
+        # Matrix values at the 4 corners
+        # Note: matrix indexing is usually [row, col] -> [y, x]
+        v00 = matrix[y0, x0]
+        v10 = matrix[y0, x1]
+        v01 = matrix[y1, x0]
+        v11 = matrix[y1, x1]
+
+        # Bilinear interpolation formula
+        res = (
+            v00 * (1 - dx) * (1 - dy)
+            + v10 * dx * (1 - dy)
+            + v01 * (1 - dx) * dy
+            + v11 * dx * dy
+        )
+        return res
 
     def profile(self, start: tuple, end: tuple, n_points: int = 100) -> dict:
-            """
-            Extracts a topographic profile between two points.
-            
-            :param start: (x, y) starting coordinates
-            :param end: (x, y) ending coordinates
-            :param n_points: Number of sampling points along the line
-            :return: Dictionary containing distance, z, e and coordinates
-            """
-            x1, y1 = start
-            x2, y2 = end
-            
-            # Linear sampling of X and Y coordinates
-            x_pts = np.linspace(x1, x2, n_points)
-            y_pts = np.linspace(y1, y2, n_points)
-            
-            # Cumulative distance from the start point
-            distances = np.sqrt((x_pts - x1)**2 + (y_pts - y1)**2)
-            
-            z_values = []
-            e_values = []
-            
-            # Sampling Z and E (Error) from the grid
-            for px, py in zip(x_pts, y_pts):
-                z_values.append(self._interpolate_at(px, py, self.Z))
-                e_values.append(self._interpolate_at(px, py, self.E))
-                #print(f"Sampling at X={px:.1f}, Y={py:.1f}")
-                
-            return {
-                "distance": distances,
-                "z": np.array(z_values),
-                "e": np.array(e_values),
-                "x_coords": x_pts,
-                "y_coords": y_pts
-            }
+        """
+        Extracts a topographic profile between two points.
 
+        :param start: (x, y) starting coordinates
+        :param end: (x, y) ending coordinates
+        :param n_points: Number of sampling points along the line
+        :return: Dictionary containing distance, z, e and coordinates
+        """
+        x1, y1 = start
+        x2, y2 = end
+
+        # Linear sampling of X and Y coordinates
+        x_pts = np.linspace(x1, x2, n_points)
+        y_pts = np.linspace(y1, y2, n_points)
+
+        # Cumulative distance from the start point
+        distances = np.sqrt((x_pts - x1) ** 2 + (y_pts - y1) ** 2)
+
+        z_values = []
+        e_values = []
+
+        # Sampling Z and E (Error) from the grid
+        for px, py in zip(x_pts, y_pts):
+            z_values.append(self._interpolate_at(px, py, self.Z))
+            e_values.append(self._interpolate_at(px, py, self.E))
+            # print(f"Sampling at X={px:.1f}, Y={py:.1f}")
+
+        return {
+            "distance": distances,
+            "z": np.array(z_values),
+            "e": np.array(e_values),
+            "x_coords": x_pts,
+            "y_coords": y_pts,
+        }
 
     def plot_profile(self, p_data: dict, title: str = "Z Profile"):
-            """
-            Plots the profile and displays start/end coordinates.
-            """
-            import matplotlib.pyplot as plt
-            
-            fig_name = "pyGEKO_Profile_Analysis"
-            fig = plt.figure(num=fig_name, figsize=(10, 6)) # Un poco más alto para el subtítulo
-            
-            if fig.axes:
-                ax = fig.gca()
-                ax.clear()
-            else:
-                ax = fig.add_subplot(111)
+        """
+        Plots the profile and displays start/end coordinates.
+        """
+        import matplotlib.pyplot as plt
 
-            dist = p_data["distance"]
-            z = p_data["z"]
-            e = p_data["e"]
-            x_pts = p_data["x_coords"]
-            y_pts = p_data["y_coords"]
+        fig_name = "pyGEKO_Profile_Analysis"
+        fig = plt.figure(
+            num=fig_name, figsize=(10, 6)
+        )  # Un poco más alto para el subtítulo
 
-            # Plot uncertainty and elevation
-            ax.fill_between(dist, z - e, z + e, color='lightblue', alpha=0.4, label='Uncertainty (±σ)')
-            ax.plot(dist, z, color='darkgreen', lw=2, label='Z')
-            
-            # Add labels and grid
-            ax.set_title(title, fontsize=14, pad=20)
-            
-            # --- NEW: DISPLAY START AND END COORDINATES ---
-            # We create a string with the start and end points
-            start_txt = f"Start: ({x_pts[0]:.1f}, {y_pts[0]:.1f})"
-            end_txt = f"End: ({x_pts[-1]:.1f}, {y_pts[-1]:.1f})"
-            
-            # We can place this as a 'suptitle' or as a text box
-            fig.suptitle(f"{start_txt}  --->  {end_txt}", fontsize=9, color='gray', y=0.92)
-            # ----------------------------------------------
+        if fig.axes:
+            ax = fig.gca()
+            ax.clear()
+        else:
+            ax = fig.add_subplot(111)
 
-            ax.set_xlabel("Distance along section")
-            ax.set_ylabel("Z")
-            ax.grid(True, linestyle='--', alpha=0.6)
-            ax.legend(loc='upper right')
-            
-            plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust layout to make room for suptitle
-            fig.canvas.draw()
-            
-            try:
-                fig.canvas.manager.show()
-            except Exception as e:
-                pass
+        dist = p_data["distance"]
+        z = p_data["z"]
+        e = p_data["e"]
+        x_pts = p_data["x_coords"]
+        y_pts = p_data["y_coords"]
+
+        # Plot uncertainty and elevation
+        ax.fill_between(
+            dist, z - e, z + e, color="lightblue", alpha=0.4, label="Uncertainty (±σ)"
+        )
+        ax.plot(dist, z, color="darkgreen", lw=2, label="Z")
+
+        # Add labels and grid
+        ax.set_title(title, fontsize=14, pad=20)
+
+        # --- NEW: DISPLAY START AND END COORDINATES ---
+        # We create a string with the start and end points
+        start_txt = f"Start: ({x_pts[0]:.1f}, {y_pts[0]:.1f})"
+        end_txt = f"End: ({x_pts[-1]:.1f}, {y_pts[-1]:.1f})"
+
+        # We can place this as a 'suptitle' or as a text box
+        fig.suptitle(f"{start_txt}  --->  {end_txt}", fontsize=9, color="gray", y=0.92)
+        # ----------------------------------------------
+
+        ax.set_xlabel("Distance along section")
+        ax.set_ylabel("Z")
+        ax.grid(True, linestyle="--", alpha=0.6)
+        ax.legend(loc="upper right")
+
+        plt.tight_layout(
+            rect=[0, 0.03, 1, 0.95]
+        )  # Adjust layout to make room for suptitle
+        fig.canvas.draw()
+
+        try:
+            fig.canvas.manager.show()
+        except Exception as e:
+            pass
 
     def plot_profile2(self, p_data: dict, title: str = "Z Profile"):
-            """
-            Plots the profile, reusing the window if it already exists.
-            """
-            import matplotlib.pyplot as plt
-            
-            # Use a unique window name. 
-            # If a window with this name exists, Matplotlib will switch to it.
-            fig_name = "pyGEKO_Profile_Analysis"
-            
-            # If the window exists, we get its ID; if not, it creates a new one.
-            fig = plt.figure(num=fig_name, figsize=(10, 5))
-            
-            # If the figure was already open, it will have axes. 
-            # We clear them to draw the new profile.
-            if fig.axes:
-                ax = fig.gca()
-                ax.clear()
-            else:
-                ax = fig.add_subplot(111)
+        """
+        Plots the profile, reusing the window if it already exists.
+        """
+        import matplotlib.pyplot as plt
 
-            dist = p_data["distance"]
-            z = p_data["z"]
-            e = p_data["e"]
-            
-            # Plotting the uncertainty and the terrain
-            ax.fill_between(dist, z - e, z + e, color='lightblue', alpha=0.4, label='Uncertainty (±σ)')
-            ax.plot(dist, z, color='darkgreen', lw=2, label='Z')
-            
-            ax.set_title(title)
-            ax.set_xlabel("Distance")
-            ax.set_ylabel("Z")
-            ax.grid(True, linestyle='--', alpha=0.7)
-            ax.legend()
-            # Add a vertical line at the peak or show min/max elevation
-            #max_z = np.max(z)
-            #max_dist = dist[np.argmax(z)]
-            #ax.annotate(f'Peak: {max_z:.1f}m', xy=(max_dist, max_z), 
-            #            xytext=(max_dist, max_z + 100),
-            #            arrowprops=dict(facecolor='black', shrink=0.05))
-            
-            # Refresh the canvas without blocking
-            fig.canvas.draw()
-            
-            # Bring to front if possible
-            try:
-                fig.canvas.manager.show()
-            except Exception as e:
-                pass
+        # Use a unique window name.
+        # If a window with this name exists, Matplotlib will switch to it.
+        fig_name = "pyGEKO_Profile_Analysis"
+
+        # If the window exists, we get its ID; if not, it creates a new one.
+        fig = plt.figure(num=fig_name, figsize=(10, 5))
+
+        # If the figure was already open, it will have axes.
+        # We clear them to draw the new profile.
+        if fig.axes:
+            ax = fig.gca()
+            ax.clear()
+        else:
+            ax = fig.add_subplot(111)
+
+        dist = p_data["distance"]
+        z = p_data["z"]
+        e = p_data["e"]
+
+        # Plotting the uncertainty and the terrain
+        ax.fill_between(
+            dist, z - e, z + e, color="lightblue", alpha=0.4, label="Uncertainty (±σ)"
+        )
+        ax.plot(dist, z, color="darkgreen", lw=2, label="Z")
+
+        ax.set_title(title)
+        ax.set_xlabel("Distance")
+        ax.set_ylabel("Z")
+        ax.grid(True, linestyle="--", alpha=0.7)
+        ax.legend()
+        # Add a vertical line at the peak or show min/max elevation
+        # max_z = np.max(z)
+        # max_dist = dist[np.argmax(z)]
+        # ax.annotate(f'Peak: {max_z:.1f}m', xy=(max_dist, max_z),
+        #            xytext=(max_dist, max_z + 100),
+        #            arrowprops=dict(facecolor='black', shrink=0.05))
+
+        # Refresh the canvas without blocking
+        fig.canvas.draw()
+
+        # Bring to front if possible
+        try:
+            fig.canvas.manager.show()
+        except Exception as e:
+            pass
 
     def interactive_profile(self, n_points: int = 200):
+        """
+        Enables interactive profile selection on the current active plot.
+        """
+        import matplotlib.pyplot as plt
+
+        ax = plt.gca()  # Get current axes
+        # Store the picker in an attribute to prevent garbage collection
+        self._active_picker = ProfilePicker(ax, self, n_points)
+        plt.show()
+
+    def export_asc(
+        self,
+        filename=None,
+        paste_sigma=False,
+        x_offset: float = 0,
+        y_offset: float = 0,
+    ):
+        """
+        Export the grid to ESRI ASCII format (.asc).
+
+        :param filename: Base name for the files., defaults to None
+        :type filename: _type_, optional
+        :param paste_sigma: If it is True, it generates TWO files: one for Z and another for SIGMA., defaults to False
+        :type paste_sigma: bool, optional
+        :param x_offset: a posteriory fine tuning of the X, defaults to 0
+        :type x_offset: float, optional
+        :param y_offset: a posteriory fine tuning of the Y, defaults to 0
+        :type y_offset: float, optional
+        """
+        base = filename if filename else self.title
+
+        # Calculate cell dimensions
+        dx = abs(self.X[0, 1] - self.X[0, 0])
+        dy = abs(self.Y[1, 0] - self.Y[0, 0])
+
+        if not np.isclose(dx, dy, rtol=1e-3):
+            print(
+                f"Warning: Non square cells (dx={dx:.3f}, dy={dy:.3f}). "
+                f"QGIS will use dx as the cell size, which may distort the map."
+            )
+
+        def _write_file(fname: str, data_matrix: np.ndarray):
             """
-            Enables interactive profile selection on the current active plot.
+            Write asc file.
+
+            :param fname: File name
+            :type fname: str
+            :param data_matrix: Z or E matrix
+            :type data_matrix: np.ndarray
             """
-            import matplotlib.pyplot as plt
-            
-            ax = plt.gca() # Get current axes
-            # Store the picker in an attribute to prevent garbage collection
-            self._active_picker = ProfilePicker(ax, self, n_points)
-            plt.show()
+            # We flipped rows so that North is at the top (GIS standard)
+            grid_to_save = np.flipud(data_matrix)
+
+            with open(fname, "w") as f:
+                f.write(f"ncols         {self.nx}\n")
+                f.write(f"nrows         {self.ny}\n")
+                if self.calib_dic is not None:
+                    f.write(
+                        f"xllcorner     {self.calib_dic['xllcorner'] - x_offset:.6f}\n"
+                    )
+                    f.write(
+                        f"yllcorner     {self.calib_dic['yllcorner'] - y_offset:.6f}\n"
+                    )
+                else:
+                    f.write(f"xllcorner     {self.X.min():.6f}\n")
+                    f.write(f"yllcorner     {self.Y.min():.6f}\n")
+                f.write(f"cellsize      {dx:.6f}\n")
+                f.write("NODATA_value  -9999\n")
+                for row in grid_to_save:
+                    row_clean = np.where(np.isnan(row), -9999, row)
+                    f.write(" ".join(map(str, row_clean)) + "\n")
+            print(f"Exported file: {fname}")
+
+        def _write_prj(fname: str):
+            """
+            Write the associated projection file.
+
+            :param fname: filename
+            :type fname: str
+            """
+            prj_name = os.path.splitext(fname)[0] + ".prj"
+            # WKT para EPSG:3857 (Standard Web Mercator used by Heightmapper)
+            wkt_3857 = (
+                'PROJCS["WGS 84 / Pseudo-Mercator",GEOGCS["WGS 84",'
+                'DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,'
+                'AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],'
+                'PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],'
+                'UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],'
+                'AUTHORITY["EPSG","4326"]],PROJECTION["Mercator_1SP"],'
+                'PARAMETER["central_meridian",0],PARAMETER["scale_factor",1],'
+                'PARAMETER["false_easting",0],PARAMETER["false_northing",0],'
+                'UNIT["metre",1,AUTHORITY["EPSG","9001"]],'
+                'AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","3857"]]'
+            )
+            with open(prj_name, "w") as f:
+                f.write(wkt_3857)
+            print(f"Projection file created: {prj_name}")
+
+        # Export Z_ESTIM
+        _write_file(f"{base}.asc", self.Z)
+        if self.calib_dic is not None:
+            _write_prj(f"{base}.asc")
+
+        # Export SIGMA if requested
+        if paste_sigma:
+            _write_file(f"{base}_sigma.asc", self.E)
+            if self.calib_dic is not None:
+                _write_prj(f"{base}_sigma.asc")
