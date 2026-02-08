@@ -1070,6 +1070,8 @@ class Gplot:
         paste_sigma=False,
         x_offset: float = 0,
         y_offset: float = 0,
+        xll: float = None,
+        yll: float = None,
     ):
         """
         Export the grid to ESRI ASCII format (.asc).
@@ -1082,6 +1084,10 @@ class Gplot:
         :type x_offset: float, optional
         :param y_offset: a posteriory fine tuning of the Y, defaults to 0
         :type y_offset: float, optional
+        :param xll: Pre-calibrated case, lower left corner X coordinate, defaults to None
+        :type xll: float, optional
+        :param yll: Pre-calibrated case, lower left corner Y coordinate, defaults to None
+        :type yll: float, optional
         """
         base = filename if filename else self.title
 
@@ -1112,11 +1118,14 @@ class Gplot:
                 f.write(f"nrows         {self.ny}\n")
                 if self.calib_dic is not None:
                     f.write(
-                        f"xllcorner     {self.calib_dic['xllcorner'] - x_offset:.6f}\n"
+                        f"xllcorner     {self.calib_dic['xllcorner'] + x_offset:.6f}\n"
                     )
                     f.write(
-                        f"yllcorner     {self.calib_dic['yllcorner'] - y_offset:.6f}\n"
+                        f"yllcorner     {self.calib_dic['yllcorner'] + y_offset:.6f}\n"
                     )
+                elif xll is not None and yll is not None:
+                    f.write(f"xllcorner     {xll + x_offset:.6f}\n")
+                    f.write(f"yllcorner     {yll + y_offset:.6f}\n")
                 else:
                     f.write(f"xllcorner     {self.X.min():.6f}\n")
                     f.write(f"yllcorner     {self.Y.min():.6f}\n")
@@ -1162,3 +1171,8 @@ class Gplot:
             _write_file(f"{base}_sigma.asc", self.E)
             if self.calib_dic is not None:
                 _write_prj(f"{base}_sigma.asc")
+
+        if xll is not None and yll is not None:
+            print(
+                "Pre-calibrated data: you will need to provide the CRS or the `.prj` file yourself "
+            )

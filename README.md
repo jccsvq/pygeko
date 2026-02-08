@@ -18,10 +18,10 @@
 
 * **High-Performance Engine:** Kriging implementation is fully vectorized (numpy) and optimized with KD-Tree spatial indexing.
 * **True Parallelism:** Seamlessly scales across all CPU cores for grid estimation.
-* **Advanced Visualization:** 3D interactive surfaces (Plotly) and static scientific error analysis (Matplotlib/Seaborn).
-* **Geoscience Standards:** Built-in support for industry-standard `.grd` and `.hdr` (Sidecar) file formats.
-* **Smart Metadata:** Saves model parameters (, , ) directly within the project files.
-* **CLI Utilities:** Include `pygeko`, a python REPL with pre-imported modules for interactive analysis. Also include `lsgck`, a command-line tool to inspect your experiment results instantly.
+* **Advanced Visualization:** 3D interactive surfaces (Plotly) and static scientific error analysis (Matplotlib/Seaborn),topographic, hypsometric/batimemetric maps.
+* **Geoscience Standards:** Built-in support for industry-standard `.grd` and `.hdr` (Sidecar) files and ESRI ASCII (.asc) format.
+* **Smart Metadata:** Saves model parameters directly within the project files.
+* **CLI Utilities:** Include `pygeko`, a python REPL with pre-imported modules for interactive analysis. Also include `lsgck` and `catgck`, two command-line tools to inspect your experiment results instantly.
 
 ![Mount St. Helens 1000x1000 grid (from 5000 points) as viewed in a Raspberry PI 5 acceded vis VNC](https://raw.githubusercontent.com/jccsvq/pygeko/main/assets/msh-rpi.jpg)
 

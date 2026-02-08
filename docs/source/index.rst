@@ -36,7 +36,7 @@ Designed for efficiency, pyGEKO runs seamlessly on high-end x86 workstations and
 
 * **🛠️ Battle-Tested Algorithms:** Implements Generalized Increment Kriging (GIK) and KD-Tree spatial indexing for rapid neighborhood search.
 * **🛠️ Optional transparent data normalization** to improve numerical stability.
-* **📦 GIS Ready:** Exports results directly to standard ``.grd`` and ``.hdr`` formats compatible with Surfer, QGIS, and other geospatial tools.
+* **📦 GIS Ready:** Exports results directly to **ESRI ASCII (.asc)** format, a universal standard for Geographic Information Systems (GIS) like QGIS or ArcGIS.
 
 📊 Performance Benchmark
 ------------------------

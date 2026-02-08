@@ -1332,13 +1332,15 @@ Once the `.topo` viewport is open, you can click on a pair of points on your map
 (calibrate-target)=
 ### Grid calibration
 
-The `.calibrate()` method allows for last-minute topographic calibration of a grid obtained from data derived from the use of the [`png2csv`](#png2csv-utility) utility and that has not been previously calibrated. (see `Calibrator` [below](#calibrator-class)). 
+The `.calibrate()` method allows for last-minute topographic calibration of a grid. It has been written, as an example, for a very specific case, but it is also conceived as a placeholder for your own calibration function suited to your needs (see below). The case here is for data derived from the use of the [`png2csv`](#png2csv-utility) utility and that has not been previously calibrated. (see `Calibrator` [below](#calibrator-class)). 
 
-For example, the `msh5000.csv` data included in this package has been obtained from Heightmapper at the URL:
+For example, the `msh5000.csv` data included in this package has been obtained from [Heightmapper](https://tangrams.github.io/heightmapper/) at the URL:
 
-`https://tangrams.github.io/heightmapper/#12.6667/46.1947/-122.1721`
+[`https://tangrams.github.io/heightmapper/#12.6667/46.1947/-122.1721`](https://tangrams.github.io/heightmapper/#12.6667/46.1947/-122.1721)
 
-which indicates a zoom factor of 12.6667, a latitude of 46.1947, and a longitude of -122.1721. therefore, the resolution in X and Y is
+
+
+which indicates a zoom factor of 12.6667, a latitude of 46.1947 degrees (North), and a longitude of -122.1721 degrees (West). The resolution in X and Y is then:
 
 $$ 
 S = C \cdot \frac{\cos(lat)}{2^{(zoom + 8)}} = 16.6619 \,\,\,\text{meters/pixel}
@@ -1348,14 +1350,11 @@ where $ C = 40075016.686 $ is the Earth's equatorial circumference in meters. If
 $H_{max}=2524\,\,\,\text{m}$, $H_{min}=617\,\,\,\text{m}$, then the values for $X$, $Y$ and $Z$ are changed to:
 
 
-$$ \begin{align*}
-X &= S\cdot X \\
-Y &= S\cdot Y \\
-Z &= \frac{(H_{max}-H_{min})}{ D } \cdot Z + H_{min}
-\\
-\end{align*}$$
+$$ X = S\cdot X $$
+$$Y = S\cdot Y $$
+$$Z = \frac{(H_{max}-H_{min})}{ D } \cdot Z + H_{min}$$
 
-where $D$  is the depth of the PNG ($65536$ if $\max(Z) > 256$ or $256$ otherwise.
+where $D$  is the depth of the PNG ($65536$ if $\max(Z) > 256$ or $256$ otherwise).
 
 The following script:
 
@@ -1396,7 +1395,7 @@ It will draw exactly the same topographic map of Mt. St. Helens shown [above](#m
 
 ```bash
 $ cat msh-topo_meta.txt 
-pyGEKO Map Metadata - 2026-01-28 07:57
+pyGEKO Map Metadata - 2026-02-07 05:54
 --------------------------------------------------
 Title:        Mount St. Helens, WA
 Modehb: 0
@@ -1404,18 +1403,19 @@ V_min: 0
 V_max: 2600
 Step_thin: 40
 Step_thick: 200
-Color: k
+Color: sienna
 Show_scale: True
 North_angle: 0
 Sealevel: 0.0
 Hillshade: 0
 Azimuth: 315.0
 Alt: 45.0
+Interactive: True
 --------------------------------------------------
 Grid metadata:
 Grid file: msh5000_1_20_mod_13
     type=GRID
-    creator=pyGEKO v1.0.0.dev0
+    creator=pyGEKO v1.0.0.dev1 (Normalized Mode)
     file=msh5000.csv
     x_col=X
     y_col=Y
@@ -1426,12 +1426,12 @@ Grid file: msh5000_1_20_mod_13
     model=13
     zk=[0.         0.         0.00230578 0.         0.83384581]
     xmin=0.0
-    xmax=976.5625
+    xmax=1000.0
     ymin=0.0
-    ymax=976.5625
+    ymax=1000.0
     bins=500
     hist=500
-    date=2026-01-26 09:05:22.576085
+    date=2026-02-05 11:55:12.861217
 --------------------------------------------------
 Calibration metadata:
     hmin=617.0
@@ -1440,10 +1440,121 @@ Calibration metadata:
     res=16.661903698397662
     invertY=True
     lat=46.1947
+    lon=-122.1721
     zoom=12.667
+    xllcorner=-13608466.912994094
+    yllcorner=5803274.165488983
+```
+
+If your calibration needs are different and you can write your own calibration function - guided by the one included in this package - you can proceed in at least two ways: you can inject your own georeferencing logic by inheriting from the class or by replacing the method at runtime.
+
+```python
+from pygeko import Gplot
+
+# Inherit from `Gplot`
+class MyGplot(Gplot):
+    # Override the `calibrate` method
+    def calibrate(self, **arg):
+        <your calibration logic here>
+
+# Use your new class instead of `Gplot`
+gp = MyGplot("myfile.grd")
+gp.calibrate(**arg)
+... # etc.
+```
+
+or in runtime:
+
+```python
+from pygeko import Gplot
+
+def my_calibrate(self, **arg):
+    <your calibration logic here>
+
+
+gp = Gplot("myfile.grd")
+# Use your own `calibrate` function with `Gplot`
+gp.calibrate = my_calibrate
+gp.calibrate(**arg)
+... # etc.
 ```
 
 Please see the options for {meth}`.calibrate <pygeko.Gplot.calibrate>`
+
+## GIS Integration: Exporting to ESRI ASCII
+
+`pyGEKO` allows you to export your results to the **ESRI ASCII (.asc)** format, a universal standard for Geographic Information Systems (GIS) like QGIS or ArcGIS. This enables you to overlay your Kriging reconstructions on real-world maps, satellite imagery, or digital elevation models.
+
+>**Note:** Exporting to ASC format requires square grid cells; that is, the distance between rows must equal the distance between columns. If this condition is not met, the map may be distorted.
+
+The primary tool for this is the `export_asc` method in the `Gplot` class. This method exports the estimated $Z$ (and, optionally, its errors)  so that you can drag and drop the resulting file, for example, into QGIS and use it directly after assigning it a suitable **CRS**.
+
+### Usage Scenarios
+
+The `export_asc` method is highly flexible and covers three main workflows:
+
+#### 1. Automatic Georeferencing (Heightmapper)
+
+If you have used the `calibrate()` method with metadata from Heightmapper, `pyGEKO` automatically calculates the global coordinates in the **Web Mercator (EPSG:3857)** projection.
+
+```python
+gp = Gplot("msh5000_1_20_mod_13")
+gp.calibrate(2524.0, 617.0, 46.1947, -122.1721, 12.667, invertY=True)
+gp.export_asc("0export", paste_sigma=True)
+```
+
+* **Result:** Generates `.asc` files: `0export.asc`, `0export.prj`, `0export_sigma.asc`, and `0export_sigma.prj`. Both `.asc` files starting by
+
+```
+ncols         500
+nrows         500
+xllcorner     -13615363.578750
+yllcorner     5799377.499733
+cellsize      53.016291
+NODATA_value  -9999
+```
+
+After reading them in QGIS, we found, however, that the zoom factor is incorrect and after some testing we found that the correct value is 12.0. Therefore, we repeat:
+
+```python
+gp = Gplot("msh5000_1_20_mod_13")
+gp.calibrate(2524.0, 617.0, 46.1947, -122.1721, 12.000, invertY=True)
+gp.export_asc("0export", paste_sigma=True)
+```
+
+Now, with the correct scale, we observe that we have drifted about two kilometers east and one south. We will correct this bellow, in point 3 Fine Tuning.
+
+#### 2. Manual Pre-calibrated Data (UTM, MGRS, etc.)
+
+If your input data was already in a metric coordinate system (like UTM) and you know the exact coordinates of the lower-left corner of your grid:
+
+```python
+gp.export_asc("filename", xll=542000.0, yll=4125000.0)
+
+```
+
+* **Note:** In this case, you should manually define the CRS in QGIS as no `.prj` is generated for custom coordinates.
+
+#### 3. Post-export Fine Tuning (Offset)
+
+If you find that your grid is slightly shifted from its real-world position (common when calibrating "by eye"), you can apply a correction without re-calculating the Kriging model:
+
+```python
+# Shifting the result 2000m to the West and 1000m to the North
+gp.export_asc("0export", paste_sigma=True, x_offset=2000, y_offset=-1000)
+
+```
+
+and this time we found that the calibration is almost perfect!
+
+### Tips for QGIS
+
+1. **Drag and Drop:** Simply drag the `.asc` file into QGIS.
+2. **Symbology:** Double-click the layer and set the **Render type** to *Singleband pseudocolor* to see the terrain relief.
+3. **Error Map:** Export with `paste_sigma=True` to visualize the Kriging variance and identify areas with higher uncertainty.
+
+
+Please see the options for {meth}`.export_asc <pygeko.Gplot.export_asc>`
 
 (calibrator-class)=
 ## `Calibrator` use
