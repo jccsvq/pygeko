@@ -848,6 +848,7 @@ class Gplot:
 
         # Grid calibration metadata
         self.calib_dic = {
+            "CRS": "EPSG:3857",
             "hmin": hmin,
             "hmax": hmax,
             "depth": depth,
@@ -1116,7 +1117,11 @@ class Gplot:
             with open(fname, "w") as f:
                 f.write(f"ncols         {self.nx}\n")
                 f.write(f"nrows         {self.ny}\n")
-                if self.calib_dic is not None:
+                if (
+                    self.calib_dic is not None
+                    and "CRS" in self.calib_dic
+                    and self.calib_dic["CRS"] == "EPSG:3857"
+                ):
                     f.write(
                         f"xllcorner     {self.calib_dic['xllcorner'] + x_offset:.6f}\n"
                     )
@@ -1163,13 +1168,21 @@ class Gplot:
 
         # Export Z_ESTIM
         _write_file(f"{base}.asc", self.Z)
-        if self.calib_dic is not None:
+        if (
+            self.calib_dic is not None
+            and "CRS" in self.calib_dic
+            and self.calib_dic["CRS"] == "EPSG:3857"
+        ):
             _write_prj(f"{base}.asc")
 
         # Export SIGMA if requested
         if paste_sigma:
             _write_file(f"{base}_sigma.asc", self.E)
-            if self.calib_dic is not None:
+            if (
+                self.calib_dic is not None
+                and "CRS" in self.calib_dic
+                and self.calib_dic["CRS"] == "EPSG:3857"
+            ):
                 _write_prj(f"{base}_sigma.asc")
 
         if xll is not None and yll is not None:

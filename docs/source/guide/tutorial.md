@@ -1434,6 +1434,7 @@ Grid file: msh5000_1_20_mod_13
     date=2026-02-05 11:55:12.861217
 --------------------------------------------------
 Calibration metadata:
+    CRS=EPSG:3857
     hmin=617.0
     hmax=2524.0
     depth=65536
@@ -1446,7 +1447,11 @@ Calibration metadata:
     yllcorner=5803274.165488983
 ```
 
+### Extensibility: Custom Calibration
+
 If your calibration needs are different and you can write your own calibration function - guided by the one included in this package - you can proceed in at least two ways: you can inject your own georeferencing logic by inheriting from the class or by replacing the method at runtime.
+
+**Using Inheritance:**
 
 ```python
 from pygeko import Gplot
@@ -1456,6 +1461,7 @@ class MyGplot(Gplot):
     # Override the `calibrate` method
     def calibrate(self, **arg):
         <your calibration logic here>
+        pass
 
 # Use your new class instead of `Gplot`
 gp = MyGplot("myfile.grd")
@@ -1463,21 +1469,51 @@ gp.calibrate(**arg)
 ... # etc.
 ```
 
-or in runtime:
+**Using Monkey Patching:**
+
 
 ```python
 from pygeko import Gplot
 
-def my_calibrate(self, **arg):
+def my_custom_calib(self, **arg):
     <your calibration logic here>
+    pass
 
 
 gp = Gplot("myfile.grd")
 # Use your own `calibrate` function with `Gplot`
-gp.calibrate = my_calibrate
+gp.calibrate = my_custom_calib.__get__(gp, Gplot)
 gp.calibrate(**arg)
 ... # etc.
 ```
+
+If you write your own `calibrate` function, be aware that the version included in `pyGEKO` writes a dictionary:
+
+```python
+self.calib_dic = {
+    "CRS": "EPSG:3857",
+    "hmin": hmin,
+    "hmax": hmax,
+    "depth": depth,
+    "res": float(res),
+    "invertY": invertY,
+    "lat": lat,
+    "lon": lon,
+    "zoom": zoom,
+    "xllcorner": float(xllcorner),
+    "yllcorner": float(yllcorner),
+}
+```
+
+This dictionary has a dual function:
+
+* To transmit calibration information to the sidecar file of metadata for the maps exported by `Gplot.topo()`. Therefore, you can write any information you deem relevant to your calibration into it.
+
+* To act as a switch in `Gplot.export_asc()` to write the `.prj` files if `self.calib_dic["CRS"] == "EPSG:3857"`.
+
+If you decide to write your own dictionary and need to add `"CRS": "EPSG:3857"`, be sure to also add `xllcorner` and `yllcorner` so that your calibration is treated in `export_asc` the same as the one included in `pyGEKO` and the corresponding `.prj` files are written.
+
+>Also note that it is not essential for your `calibrate` to write this dictionary.
 
 Please see the options for {meth}`.calibrate <pygeko.Gplot.calibrate>`
 
