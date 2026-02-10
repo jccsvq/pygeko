@@ -16,6 +16,9 @@ pyGEKO: Fast Generalized Covariance Kriging
 
 **pyGEKO** is a high-performance Python library for **Generalized Covariance Kriging (GCK)**. Unlike traditional Ordinary Kriging, pyGEKO eliminates the tedious process of manual variogram fitting. It automatically recognizes the underlying spatial structure using a powerful library of generalized covariance models.
 
+.. note::
+   Kriging is a mathematical interpolation technique based on the theory of stochastic processes, applicable in any field of knowledge. However, all the examples included here deal with the problem of terrain reconstruction from scattered elevation measurements, and special effort has been made to connect the results with geographic information systems (GIS) because this is an area where it is frequently used.
+
 Designed for efficiency, pyGEKO runs seamlessly on high-end x86 workstations and is specifically optimized for **ARM64 architectures**, making it the premier choice for geospatial analysis on the **Raspberry Pi 5**.
 
 🚀 Key Features
@@ -120,7 +123,7 @@ The documentation is organized following the **Diátaxis** framework:
    guide/tutorial.md
    guide/tuning
    guide/rpi_optimization
-   guide/exporting
+   guide/exporting.md
    guide/cli.md
 
 .. toctree::

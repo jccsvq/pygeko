@@ -1447,6 +1447,7 @@ Calibration metadata:
     yllcorner=5803274.165488983
 ```
 
+(custom-calibration)=
 ### Extensibility: Custom Calibration
 
 If your calibration needs are different and you can write your own calibration function - guided by the one included in this package - you can proceed in at least two ways: you can inject your own georeferencing logic by inheriting from the class or by replacing the method at runtime.
@@ -1517,6 +1518,7 @@ If you decide to write your own dictionary and need to add `"CRS": "EPSG:3857"`,
 
 Please see the options for {meth}`.calibrate <pygeko.Gplot.calibrate>`
 
+(GIS-integration)=
 ## GIS Integration: Exporting to ESRI ASCII
 
 `pyGEKO` allows you to export your results to the **ESRI ASCII (.asc)** format, a universal standard for Geographic Information Systems (GIS) like QGIS or ArcGIS. This enables you to overlay your Kriging reconstructions on real-world maps, satellite imagery, or digital elevation models.
