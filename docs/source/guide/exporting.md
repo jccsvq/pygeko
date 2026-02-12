@@ -41,7 +41,7 @@ gp.export_asc(xll=542000.0, yll=4125000.0)
 
 ### The Correct Way to Bind
 
-If you simply assign a function to an instance (`gp.calibrate = my_func`), Python will not pass the `self` argument automatically. You must use the `.__get__` method:
+If you simply assign a function to an instance (`gp.calibrate = my_func`), Python will not pass the `self` argument automatically. You must use the `.__get__` method/descriptor:
 
 ```python
 from pygeko import Gplot

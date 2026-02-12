@@ -1756,6 +1756,7 @@ to stablish the sea or other level as reference.
 
 ## CLI utilities
 
+(pygeko-utility)=
 ### `pygeko`
 
 ![logo_pygeko](../_static/logo_pygeko_text.png)

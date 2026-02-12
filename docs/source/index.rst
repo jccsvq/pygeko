@@ -37,7 +37,7 @@ Designed for efficiency, pyGEKO runs seamlessly on high-end x86 workstations and
    Mount St. Helens 500x500 grid (from 5000 points) as viewed in a Raspberry PI 5 acceded vis VNC
    `Click here to open the Interactive 3D Model (13 MB WebGL) <https://jccsvq.github.io/pygeko/docs/web_models/msh_3d_500.html>`_
 
-* **🛠️ Battle-Tested Algorithms:** Implements Generalized Increment Kriging (GIK) and KD-Tree spatial indexing for rapid neighborhood search.
+* **🛠️ Battle-Tested Algorithms:** Implement generalized covariance kriging using generalized increments of order k (GIK) for unbiased model estimation (no variogram) and KD-Tree spatial indexing for rapid neighborhood search.
 * **🛠️ Optional transparent data normalization** to improve numerical stability.
 * **📦 GIS Ready:** Exports results directly to **ESRI ASCII (.asc)** format, a universal standard for Geographic Information Systems (GIS) like QGIS or ArcGIS.
 
@@ -96,7 +96,9 @@ or
 
 * ``.gck``: Binary object containing the full Python state and metadata.
 * ``.grd``: Standard grid file (CSV format) for GIS software.
-* ``.hdr``: Human-readable header file with model performance metrics.
+* ``.prf``: Standard profile file (CSV format) for GIS software.
+* ``.hdr``: Human-readable header file with metadata for grids and profiles.
+* ``_meta.txt``: Human-readable metadata file for exported maps.
 * ``.html``: WebGL HTML with surface models.
 
 📖 Documentation Contents

@@ -1,7 +1,6 @@
 # pyGEKO: Fast Generalized Covariance Kriging for Python
 
 
-![Status](https://img.shields.io/badge/status-work--in--progress-orange)
 [![Documentation Status](https://readthedocs.org/projects/pygeko/badge/?version=latest)](https://pygeko.readthedocs.io/en/latest/?badge=latest)
 [![PyPI - Version](https://img.shields.io/pypi/v/pygeko.svg)](https://pypi.org/project/pygeko)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
@@ -16,12 +15,13 @@
 
 ## 🚀 Key Features
 
+* **Generalized Covarianze Kriging** No variograms. Generalized increments of order $k$ (**GIK**) are used for unbiased estimation and fitting of models.
 * **High-Performance Engine:** Kriging implementation is fully vectorized (numpy) and optimized with KD-Tree spatial indexing.
-* **True Parallelism:** Seamlessly scales across all CPU cores for grid estimation.
-* **Advanced Visualization:** 3D interactive surfaces (Plotly) and static scientific error analysis (Matplotlib/Seaborn),topographic, hypsometric/batimemetric maps.
+* **True Parallelism:** Seamlessly scales across all CPU cores for grid and profile estimation.
+* **Advanced Visualization:** 3D interactive surfaces (Plotly) and static scientific error analysis (Matplotlib/Seaborn), topographic, hypsometric/batimemetric maps. Interactive profiling.
 * **Geoscience Standards:** Built-in support for industry-standard `.grd` and `.hdr` (Sidecar) files and ESRI ASCII (.asc) format.
 * **Smart Metadata:** Saves model parameters directly within the project files.
-* **CLI Utilities:** Include `pygeko`, a python REPL with pre-imported modules for interactive analysis. Also include `lsgck` and `catgck`, two command-line tools to inspect your experiment results instantly.
+* **CLI Utilities:** Include `pygeko`, a custom python REPL with pre-imported modules for interactive analysis or scripting. Also include `lsgck` and `catgck`, two command-line tools to inspect your experiment results instantly.
 
 ![Mount St. Helens 1000x1000 grid (from 5000 points) as viewed in a Raspberry PI 5 acceded vis VNC](https://raw.githubusercontent.com/jccsvq/pygeko/main/assets/msh-rpi.jpg)
 
@@ -46,20 +46,23 @@ The following benchmark shows the time required to perform an exhaustive search 
 | **Desktop PC** | Intel i7-9700K | 8 | **~2 min 51 s** | 5.7 s/it |
 | **Raspberry Pi 5** | Cortex-A76 | 3* | **~10 min 10 s** | 20.4 s/it |
 
->*\* Recommended 3-core config for thermal stability on ARM.*
+>*\* Recommended 3-core config for thermal stability on rp5.*
 
 > **Note on Reliability:** PyGEKO uses a multiprocessing isolation strategy for tuning. Each iteration runs in a dedicated child process, ensuring 100% memory reclamation and preventing RAM accumulation even during intensive 5K+ point explorations.
 
-## 🛠 Installation (Development Mode)
+## 🛠 Installation 
 
-Since pyGEKO is not yet on PyPI, you can test it by cloning the repository:
+Use:
+```bash
+$ pip install pygeko
+```
+
+or
 
 ```bash
-git clone [https://github.com/tu_usuario/pygeko.git](https://github.com/tu_usuario/pygeko.git)
-cd pygeko
-pip install -e .
+$ pipx install pygeko
 ```
-Note: We recommend using Hatch for a seamless development experience.
+This will install the CLI utilities on your system.
 
 ## 💻 Quick Start
 
@@ -160,40 +163,9 @@ Which will quickly guide you to the best parameters to use for your interpolatio
 
 ## 🔍 Command Line Interface (CLI)
 
-pyGEKO provides the `lsgck` command to keep your workspace organized. No need to open Python to check your results:
-
-```bash
-$ lsgck
-```
-
-```ansi
-
-=====================================================================================================
-File                           | Date   | nork  | nvec  | MAE      | RMSE     | CORR     | Model     
------------------------------------------------------------------------------------------------------
-montebea_0_10.gck              | 12-27  | 0     | 10    |  122.407 |  167.426 | 0.765566 | 17        
-montebea_0_12.gck              | 12-27  | 0     | 12    |  122.003 |  167.832 | 0.764883 | 12        
-montebea_0_14.gck              | 12-27  | 0     | 14    |  121.367 |  167.534 | 0.766684 | 17        
-montebea_0_16.gck              | 12-27  | 0     | 16    |  121.629 |  167.959 | 0.765885 | 12        
-montebea_0_8.gck               | 12-27  | 0     | 8     |  122.345 |   167.89 | 0.763376 | 18        
-montebea_1_10.gck              | 12-27  | 1     | 10    |  124.966 |  167.926 | 0.764731 | 0         
-montebea_1_12.gck              | 12-27  | 1     | 12    |  122.957 |  169.571 | 0.760423 | 21        
-montebea_1_14.gck              | 12-27  | 1     | 14    |  121.332 |  167.144 | 0.768756 | 21        
-montebea_1_16.gck              | 12-27  | 1     | 16    |  121.651 |  167.421 | 0.768497 | 19        
-montebea_1_8.gck               | 12-27  | 1     | 8     |  126.446 |  170.101 | 0.754191 | 0         
-montebea_2_10.gck              | 12-27  | 2     | 10    |  138.043 |  181.814 | 0.716072 | 0         
-montebea_2_12.gck              | 12-27  | 2     | 12    |  129.459 |  173.554 | 0.741762 | 0         
-montebea_2_14.gck              | 12-27  | 2     | 14    |  124.783 |  167.688 | 0.762002 | 0         
-montebea_2_16.gck              | 12-27  | 2     | 16    |  128.726 |  171.328 | 0.751042 | 0         
-montebea_2_8.gck               | 12-27  | 2     | 8     |  129.871 |  171.107 | 0.750874 | 0         
-=====================================================================================================
-    
-
-```
-
 The `pygeko` command will launch a Python REPL with the `Kdata`, `Kgrid`, and `Gplot` classes imported, allowing you to start working interactively in any directory.
 
-```bash
+```ansi
 $ pygeko
 
 Welcome to pyGEKO-Kriger 0.9.0
@@ -206,14 +178,82 @@ Use exit() or Ctrl-D (i.e. EOF) to exit.
 ```
 
 
+pyGEKO provides the `lsgck` command to keep your workspace organized. No need to open Python to check your results:
+
+```bash
+$ lsgck
+```
+
+```ansi
+
+$ lsgck -v
+Scanning directory: /home/jesus/Nextcloud/gck/pruebas
+
+=====================================================================================================
+File                           | N | Date   | nork  | nvec  | MAE      | RMSE     | CORR     | Model -----------------------------------------------------------------------------------------------------
+montebea_0_10.gck              | N | 01-02  | 0     | 10    |  122.407 |  167.426 | 0.765566 | 16    
+montebea_0_12.gck              | N | 01-02  | 0     | 12    |  122.003 |  167.832 | 0.764883 | 11    
+montebea_0_14.gck              | N | 01-02  | 0     | 14    |  121.367 |  167.534 | 0.766684 | 16    
+montebea_0_16.gck              | N | 01-02  | 0     | 16    |  121.629 |  167.959 | 0.765885 | 11    
+montebea_0_8.gck               | N | 01-02  | 0     | 8     |  122.345 |   167.89 | 0.763376 | 17    
+montebea_1_10.gck              | N | 01-02  | 1     | 10    |  124.966 |  167.926 | 0.764731 | 0     
+montebea_1_12.gck              | N | 01-02  | 1     | 12    |  122.957 |  169.571 | 0.760423 | 20    
+montebea_1_14.gck              | N | 01-02  | 1     | 14    |  121.332 |  167.144 | 0.768756 | 20    
+montebea_1_16.gck              | N | 01-02  | 1     | 16    |  121.651 |  167.421 | 0.768497 | 18    
+montebea_1_8.gck               | N | 01-02  | 1     | 8     |  126.446 |  170.101 | 0.754191 | 0     
+montebea_2_10.gck              | N | 01-02  | 2     | 10    |  138.043 |  181.814 | 0.716072 | 0     
+montebea_2_12.gck              | N | 01-02  | 2     | 12    |  129.459 |  173.554 | 0.741762 | 0     
+montebea_2_14.gck              | N | 01-02  | 2     | 14    |  124.783 |  167.688 | 0.762002 | 0     
+montebea_2_16.gck              | N | 01-02  | 2     | 16    |  128.726 |  171.328 | 0.751042 | 0     
+montebea_2_8.gck               | N | 01-02  | 2     | 8     |  129.871 |  171.107 | 0.750874 | 0     
+=====================================================================================================
+
+```
+
+```ansi
+$ catgck montebea_1_12.gck 
+
+============================== GCK EXPLORER ===============================
+File: montebea_1_12.gck                | From: montebea.csv
+Date/Time:   2026-02-04 09:18:21       | Input points: 87
+Col X: easting          | Col Y: northing         | Col Z: heigth          
+Conf:    nork=1 | nvec=12 | Norm=False | Best model is #20
+---------------------------------------------------------------------------
+Best MAE: 122.956935 | Best RMSE: 169.570788 | Best CORR: 0.760423
+---------------------------------------------------------------------------
+
+RANK  | MOD  | MAE          | RMSE         | CORR      
+-------------------------------------------------------
+★1    | 20   | 122.956935   | 169.570788   | 0.760423  
+     ZK: [-2.947323e-15 -1.777211e+03 3.980609e-02 0.000000e+00 -1.596468e+01]
+............................................................................
+ 2    | 18   | 122.956935   | 169.570788   | 0.760423  
+     ZK: [0.000000e+00 -1.777211e+03 3.980609e-02 0.000000e+00 -1.596468e+01]
+............................................................................
+ 3    | 16   | 123.003751   | 169.701878   | 0.760124  
+     ZK: [2.008122e-16 -4.491929e+02 0.000000e+00 0.000000e+00 -1.067704e+00]
+............................................................................
+ 4    | 11   | 123.003751   | 169.701878   | 0.760124  
+     ZK: [0.000000e+00 -4.491929e+02 0.000000e+00 0.000000e+00 -1.067704e+00]
+............................................................................
+ 5    | 17   | 123.019572   | 169.747050   | 0.760021  
+     ZK: [0.000000e+00 -5.343903e+02 -1.264846e-02 3.892174e-08 0.000000e+00]
+............................................................................
+ 
+ (etc.)
+```
+
+
 ## 📂 Output Formats
 
 * `.gck`: Binary object containing the full Python state and metadata.
 * `.grd`: Standard grid file (CSV format) for GIS software.
-* `.hdr`: Human-readable header file with model performance metrics.
+* `.prf`: Profile file (CSV format)
+* `.hdr`: Human-readable metadata header file for grid and profile files.
+* `.pdf`, `.svg`, `.png`, ...: Exported high-quality  topographic and hypsometric/bathymetric maps
+* `_meta.txt`: metadata sidecar file for exported maps.
 * `.html`: WebGL HTML file with surface models.
 
-High-quality combined topographic and hypsometric/bathymetric maps can also be generated and exported to various graphic formats (`.pdf`, `.svg`, `.png`, etc.).
 
 ## 📄 License
 

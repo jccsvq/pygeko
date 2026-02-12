@@ -7,7 +7,7 @@ Prerequisites
 -------------
 
 * **Python:** 3.11 or higher.
-* **Pip:** Latest version recommended.
+* **Pip:** or **PipX** Latest version recommended.
 * **Architecture:** Supports x86_64 and ARM64 (specifically optimized for Raspberry Pi 5).
 
 Standard Installation
